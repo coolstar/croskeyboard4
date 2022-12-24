@@ -107,6 +107,15 @@ typedef struct _CROSKBHID_INTERFACE_STANDARD {
     PUNREGISTER_CALLBACK   UnregisterCallback;
 } CROSKBHID_INTERFACE_STANDARD, *PCROSKBHID_INTERFACE_STANDARD;
 
+#define INTFLAG_NEW 0x1
+#define INTFLAG_REMOVED 0x2
+
+typedef struct KeyStruct {
+    USHORT MakeCode;
+    USHORT Flags;
+    USHORT InternalFlags;
+} KeyStruct, * PKeyStruct;
+
 #define MAX_CURRENT_KEYS 20
 
 typedef struct _DEVICE_EXTENSION
@@ -166,7 +175,7 @@ typedef struct _DEVICE_EXTENSION
     BOOLEAN LeftShiftPressed;
     BOOLEAN SearchPressed;
 
-    KeySetting currentKeys[MAX_CURRENT_KEYS];
+    KeyStruct currentKeys[MAX_CURRENT_KEYS];
     int numKeysPressed;
 
     KEYBOARD_INPUT_DATA lastReported[MAX_CURRENT_KEYS];

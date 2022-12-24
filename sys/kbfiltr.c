@@ -941,33 +941,31 @@ Return Value:
     return retVal;
 }
 
-void updateKey(PDEVICE_EXTENSION devExt, KeySetting data) {
+void updateKey(PDEVICE_EXTENSION devExt, KeyStruct data) {
+    for (int i = 0; i < MAX_CURRENT_KEYS; i++) {
+        if (devExt->currentKeys[i].InternalFlags & INTFLAG_REMOVED) {
+            RtlZeroMemory(&devExt->currentKeys[i], sizeof(devExt->currentKeys[0]));
+        }
+    }
+
     data.Flags = data.Flags & (KEY_E0 | KEY_E1 | KEY_BREAK);
     if (data.Flags & KEY_BREAK) { //remove
         data.Flags = data.Flags & (KEY_E0 | KEY_E1);
         for (int i = 0; i < MAX_CURRENT_KEYS; i++) {
             if (devExt->currentKeys[i].MakeCode == data.MakeCode &&
                 devExt->currentKeys[i].Flags == data.Flags) {
-                devExt->currentKeys[i].MakeCode = 0;
-                devExt->currentKeys[i].Flags = 0;
+                devExt->currentKeys[i].InternalFlags |= INTFLAG_REMOVED;
             }
-            KeySetting keyCodes[MAX_CURRENT_KEYS] = { 0 };
-            int j = 0;
-            for (int k = 0; k < MAX_CURRENT_KEYS; k++) {
-                if (devExt->currentKeys[k].Flags != 0 ||
-                    devExt->currentKeys[k].MakeCode != 0) {
-                    keyCodes[j] = devExt->currentKeys[k];
-                    j++;
-                }
+            else if (devExt->currentKeys[i].Flags != 0 ||
+                devExt->currentKeys[i].MakeCode != 0) {
             }
-            devExt->numKeysPressed = j;
-            RtlCopyMemory(&devExt->currentKeys, keyCodes, sizeof(keyCodes));
         }
     }
     else {
         for (int i = 0; i < MAX_CURRENT_KEYS; i++) {
             if (devExt->currentKeys[i].Flags == 0x00 && devExt->currentKeys[i].MakeCode == 0x00) {
                 devExt->currentKeys[i] = data;
+                devExt->currentKeys[i].InternalFlags |= INTFLAG_NEW;
                 devExt->numKeysPressed++;
                 break;
             }
@@ -976,9 +974,23 @@ void updateKey(PDEVICE_EXTENSION devExt, KeySetting data) {
             }
         }
     }
+
+    for (int i = 0; i < MAX_CURRENT_KEYS; i++) {
+        KeyStruct keyCodes[MAX_CURRENT_KEYS] = { 0 };
+        int j = 0;
+        for (int k = 0; k < MAX_CURRENT_KEYS; k++) {
+            if (devExt->currentKeys[k].Flags != 0 ||
+                devExt->currentKeys[k].MakeCode != 0) {
+                keyCodes[j] = devExt->currentKeys[k];
+                j++;
+            }
+        }
+        devExt->numKeysPressed = j;
+        RtlCopyMemory(&devExt->currentKeys, keyCodes, sizeof(keyCodes));
+    }
 }
 
-BOOLEAN checkKey(KEYBOARD_INPUT_DATA key, KEYBOARD_INPUT_DATA report[MAX_CURRENT_KEYS]) {
+BOOLEAN checkKey(KEYBOARD_INPUT_DATA key, KeyStruct report[MAX_CURRENT_KEYS]) {
     for (int i = 0; i < MAX_CURRENT_KEYS; i++) {
         if (report[i].MakeCode == key.MakeCode &&
             report[i].Flags == (key.Flags & (KEY_E0 | KEY_E1))) {
@@ -1095,7 +1107,7 @@ Return Value:
         //Now make the data HID-like for easier handling
         ULONG i = 0;
         for (i = 0; i < (InputDataEnd - InputDataStart); i++) {
-            KeySetting key;
+            KeyStruct key;
             key.MakeCode = InputDataStart[i].MakeCode;
             key.Flags = InputDataStart[i].Flags;
             updateKey(devExt, key);
@@ -1104,9 +1116,14 @@ Return Value:
     }
 
     KEYBOARD_INPUT_DATA newReport[MAX_CURRENT_KEYS] = { 0 };
-    for (int i = 0; i < devExt->numKeysPressed; i++) { //Prepare new report for remapper to sort through
-        newReport[i].MakeCode = devExt->currentKeys[i].MakeCode;
-        newReport[i].Flags = devExt->currentKeys[i].Flags;
+    //Add new keys
+    for (int i = 0, j = 0; i < devExt->numKeysPressed; i++) { //Prepare new report for remapper to sort through
+        if (devExt->currentKeys[i].InternalFlags & INTFLAG_NEW) {
+            newReport[j].MakeCode = devExt->currentKeys[i].MakeCode;
+            newReport[j].Flags = devExt->currentKeys[i].Flags;
+            devExt->currentKeys[i].InternalFlags &= ~INTFLAG_NEW;
+            j++;
+        }
     }
 
     //Remove any empty keys
@@ -1118,22 +1135,18 @@ Return Value:
             newReportKeysPresent++;
         }
     }
+
     for (int i = newReportKeysPresent; i < MAX_CURRENT_KEYS; i++) {
         RtlZeroMemory(&newReport[i], sizeof(newReport[i]));
     }
 
     //Now add all the removed keys
     int reportSize = newReportKeysPresent;
-    for (int i = 0; i < MAX_CURRENT_KEYS; i++) {
-        if (devExt->lastReported[i].MakeCode == 0 && devExt->lastReported[i].Flags == 0)
-            break;
-        if (!checkKey(devExt->lastReported[i], newReport)) {
-            newReport[reportSize].MakeCode = devExt->lastReported[i].MakeCode;
-            newReport[reportSize].Flags = devExt->lastReported[i].Flags | KEY_BREAK;
-
+    for (int i = 0; i < devExt->numKeysPressed; i++) { //Prepare new report for remapper to sort through
+        if (devExt->currentKeys[i].InternalFlags & INTFLAG_REMOVED) {
+            newReport[reportSize].MakeCode = devExt->currentKeys[i].MakeCode;
+            newReport[reportSize].Flags = devExt->currentKeys[i].Flags | KEY_BREAK;
             reportSize++;
-            if (reportSize == (MAX_CURRENT_KEYS - 1))
-                break;
         }
     }
 
