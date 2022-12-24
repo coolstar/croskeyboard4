@@ -35,6 +35,7 @@ Environment:
 
 #include <initguid.h>
 #include <devguid.h>
+#include <acpiioct.h>
 
 #include "public.h"
 
@@ -55,6 +56,58 @@ Environment:
 #endif
 
 #define MIN(_A_,_B_) (((_A_) < (_B_)) ? (_A_) : (_B_))
+
+typedef struct KeySetting {
+    USHORT MakeCode;
+    USHORT Flags;
+} KeySetting, *PKeySetting;
+
+typedef enum {
+    CSVivaldiRequestEndpointRegister,
+    CSVivaldiRequestLoadSettings
+} CSVivaldiRequest;
+
+typedef struct CSVivaldiSettingsArg {
+    UINT32 argSz;
+    CSVivaldiRequest settingsRequest;
+    union args {
+        struct {
+            UINT8 functionRowCount;
+            KeySetting functionRowKeys[16];
+        } settings;
+    } args;
+} CSVivaldiSettingsArg, *PCSVivaldiSettingsArg;
+
+typedef NTSTATUS
+(*PPROCESS_HID_REPORT)(
+    IN PVOID Context,
+    IN PVOID ReportBuffer,
+    IN ULONG ReportBufferLen,
+    OUT size_t* BytesWritten
+);
+
+typedef BOOLEAN
+(*PREGISTER_CALLBACK)(
+    IN PVOID Context,
+    IN PVOID HIDContext,
+    IN PPROCESS_HID_REPORT HidReportProcessCallback
+);
+
+typedef BOOLEAN
+(*PUNREGISTER_CALLBACK)(
+    IN PVOID Context
+);
+
+DEFINE_GUID(GUID_CROSKBHID_INTERFACE_STANDARD,
+    0x74a15a7c, 0x82b5, 0x11ed, 0x8c, 0xd5, 0x00, 0x15, 0x5d, 0xa4, 0x4e, 0x91);
+
+typedef struct _CROSKBHID_INTERFACE_STANDARD {
+    INTERFACE InterfaceHeader;
+    PREGISTER_CALLBACK     RegisterCallback;
+    PUNREGISTER_CALLBACK   UnregisterCallback;
+} CROSKBHID_INTERFACE_STANDARD, *PCROSKBHID_INTERFACE_STANDARD;
+
+#define MAX_CURRENT_KEYS 20
 
 typedef struct _DEVICE_EXTENSION
 {
@@ -102,6 +155,27 @@ typedef struct _DEVICE_EXTENSION
     //
     KEYBOARD_ATTRIBUTES KeyboardAttributes;
 
+    UINT8 legacyTopRowKeys[10];
+    UINT8 legacyVivaldi[10];
+
+    UINT8 functionRowCount;
+    KeySetting functionRowKeys[16];
+
+    BOOLEAN LeftCtrlPressed;
+    BOOLEAN LeftAltPressed;
+    BOOLEAN LeftShiftPressed;
+    BOOLEAN SearchPressed;
+
+    KeySetting currentKeys[MAX_CURRENT_KEYS];
+    int numKeysPressed;
+
+    KEYBOARD_INPUT_DATA lastReported[MAX_CURRENT_KEYS];
+
+    PCALLBACK_OBJECT CSSettingsCallback;
+    PVOID CSSettingsCallbackObj;
+
+    PVOID HIDContext;
+    PPROCESS_HID_REPORT HidReportProcessCallback;
 } DEVICE_EXTENSION, *PDEVICE_EXTENSION;
 
 WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(DEVICE_EXTENSION,
@@ -195,6 +269,12 @@ WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(RPDO_DEVICE_DATA, PdoGetData)
 
 NTSTATUS
 KbFiltr_CreateRawPdo(
+    WDFDEVICE       Device,
+    ULONG           InstanceNo
+);
+
+NTSTATUS
+KbFiltr_CreateHIDPdo(
     WDFDEVICE       Device,
     ULONG           InstanceNo
 );

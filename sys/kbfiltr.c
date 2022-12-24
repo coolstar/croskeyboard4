@@ -38,6 +38,7 @@ Environment:
 --*/
 
 #include "kbfiltr.h"
+#include <stdlib.h>
 
 #ifdef ALLOC_PRAGMA
 #pragma alloc_text (INIT, DriverEntry)
@@ -109,6 +110,154 @@ Return Value:
     return status;
 }
 
+const UINT8 fnKeys_set1[] = {
+    0x3B, 0x3C, 0x3D, 0x3E, 0x3F, 0x40, 0x41, 0x42, 0x43, 0x44, 0x57, 0x58
+};
+
+#define K_LCTRL     0x1D
+#define K_LALT      0x38
+#define K_LSHFT     0x2A
+
+#define K_BACKSP    0xE
+#define K_DELETE    0x53
+
+#define K_UP        0x48
+#define K_DOWN      0x50
+#define K_LEFT      0x4B
+#define K_RIGHT     0x4D
+
+//ALL VIVALDI USES KEY_E0
+
+//values from https://github.com/coreboot/chrome-ec/blob/1b359bdd91da15ea25aaffd0d940ff63b9d72bc5/include/keyboard_8042_sharedlib.h#L116
+#define VIVALDI_BACK                0x6A
+#define VIVALDI_FWD                 0x69
+#define VIVALDI_REFRESH             0x67
+#define VIVALDI_FULLSCREEN          0x11
+#define VIVALDI_OVERVIEW            0x12
+#define VIVALDI_SNAPSHOT            0x13
+#define VIVALDI_BRIGHTNESSDN        0x14
+#define VIVALDI_BRIGHTNESSUP        0x15
+#define VIVALDI_KBD_BKLIGHT_DOWN    0x17
+#define VIVALDI_KBD_BKLIGHT_UP      0x18
+#define VIVALDI_KBD_BKLIGHT_TOGGLE  0x1e
+#define VIVALDI_PLAYPAUSE           0x1A
+#define VIVALDI_MUTE                0x20
+#define VIVALDI_VOLDN               0x2e
+#define VIVALDI_VOLUP               0x30
+
+const UINT8 legacyVivaldi[] = {
+    VIVALDI_BACK, VIVALDI_FWD, VIVALDI_REFRESH, VIVALDI_FULLSCREEN, VIVALDI_OVERVIEW, VIVALDI_BRIGHTNESSDN, VIVALDI_BRIGHTNESSUP, VIVALDI_MUTE, VIVALDI_VOLDN, VIVALDI_VOLUP
+};
+
+const UINT8 legacyVivaldiPixelbook[] = {
+    VIVALDI_BACK, VIVALDI_REFRESH, VIVALDI_FULLSCREEN, VIVALDI_OVERVIEW, VIVALDI_BRIGHTNESSDN, VIVALDI_BRIGHTNESSUP, VIVALDI_PLAYPAUSE, VIVALDI_MUTE, VIVALDI_VOLDN, VIVALDI_VOLUP
+};
+
+int CSVivaldiArg2;
+
+VOID CSVivaldiRegisterEndpoint(PDEVICE_EXTENSION  pDevice) {
+    CSVivaldiSettingsArg newArg;
+    RtlZeroMemory(&newArg, sizeof(CSVivaldiSettingsArg));
+    newArg.argSz = sizeof(CSVivaldiSettingsArg);
+    newArg.settingsRequest = CSVivaldiRequestEndpointRegister;
+    ExNotifyCallback(pDevice->CSSettingsCallback, &newArg, &CSVivaldiArg2);
+}
+
+VOID CsVivaldiCallbackFunction(
+    PDEVICE_EXTENSION pDevice,
+    CSVivaldiSettingsArg* arg,
+    PVOID Argument2
+) {
+    if (!pDevice) {
+        return;
+    }
+    if (Argument2 == &CSVivaldiArg2) {
+        return;
+    }
+
+    CSVivaldiSettingsArg localArg;
+    RtlZeroMemory(&localArg, sizeof(CSVivaldiSettingsArg));
+    RtlCopyMemory(&localArg, arg, min(arg->argSz, sizeof(CSVivaldiSettingsArg)));
+
+    if (localArg.settingsRequest == CSVivaldiRequestEndpointRegister) {
+        CSVivaldiRegisterEndpoint(pDevice);
+    } else if (localArg.settingsRequest == CSVivaldiRequestLoadSettings) {
+        pDevice->functionRowCount = localArg.args.settings.functionRowCount;
+        RtlZeroMemory(&pDevice->functionRowKeys, sizeof(pDevice->functionRowKeys));
+        for (int i = 0; i < pDevice->functionRowCount; i++) {
+            pDevice->functionRowKeys[i] = localArg.args.settings.functionRowKeys[i];
+        }
+        DbgPrint("Loaded vivaldi settings with %d keys\n", pDevice->functionRowCount);
+        for (int i = 0; i < pDevice->functionRowCount; i++) {
+            DbgPrint("Key %d: 0x%x %d\n", i, pDevice->functionRowKeys[i].MakeCode, pDevice->functionRowKeys[i].Flags);
+        }
+    }
+}
+
+NTSTATUS
+OnSelfManagedIoInit(
+    _In_
+    WDFDEVICE FxDevice
+) {
+    PDEVICE_EXTENSION       filterExt;
+    filterExt = FilterGetData(FxDevice);
+
+    NTSTATUS status = STATUS_SUCCESS;
+
+    // CS Keyboard Callback
+
+    UNICODE_STRING CSKeyboardSettingsCallbackAPI;
+    RtlInitUnicodeString(&CSKeyboardSettingsCallbackAPI, L"\\CallBack\\CsKeyboardSettingsCallbackAPI");
+
+
+    OBJECT_ATTRIBUTES attributes;
+    InitializeObjectAttributes(&attributes,
+        &CSKeyboardSettingsCallbackAPI,
+        OBJ_KERNEL_HANDLE | OBJ_OPENIF | OBJ_CASE_INSENSITIVE | OBJ_PERMANENT,
+        NULL,
+        NULL
+    );
+    status = ExCreateCallback(&filterExt->CSSettingsCallback, &attributes, TRUE, TRUE);
+    if (!NT_SUCCESS(status)) {
+
+        return status;
+    }
+
+    filterExt->CSSettingsCallbackObj = ExRegisterCallback(filterExt->CSSettingsCallback,
+        CsVivaldiCallbackFunction,
+        filterExt
+    );
+    if (!filterExt->CSSettingsCallbackObj) {
+        return STATUS_NO_CALLBACK_ACTIVE;
+    }
+    CSVivaldiRegisterEndpoint(filterExt);
+
+    return status;
+}
+
+NTSTATUS
+OnReleaseHardware(
+    _In_  WDFDEVICE     FxDevice,
+    _In_  WDFCMRESLIST  FxResourcesTranslated
+)
+{
+    PDEVICE_EXTENSION       filterExt;
+    UNREFERENCED_PARAMETER(FxResourcesTranslated);
+
+    filterExt = FilterGetData(FxDevice);
+
+    if (filterExt->CSSettingsCallbackObj) {
+        ExUnregisterCallback(filterExt->CSSettingsCallbackObj);
+        filterExt->CSSettingsCallbackObj = NULL;
+    }
+
+    if (filterExt->CSSettingsCallback) {
+        ObfDereferenceObject(filterExt->CSSettingsCallback);
+        filterExt->CSSettingsCallback = NULL;
+    }
+    return STATUS_SUCCESS;
+}
+
 NTSTATUS
 KbFilter_EvtDeviceAdd(
     IN WDFDRIVER        Driver,
@@ -160,6 +309,16 @@ Return Value:
     WdfFdoInitSetFilter(DeviceInit);
 
     WdfDeviceInitSetDeviceType(DeviceInit, FILE_DEVICE_KEYBOARD);
+
+    {
+        WDF_PNPPOWER_EVENT_CALLBACKS pnpCallbacks;
+        WDF_PNPPOWER_EVENT_CALLBACKS_INIT(&pnpCallbacks);
+
+        pnpCallbacks.EvtDeviceReleaseHardware = OnReleaseHardware;
+        pnpCallbacks.EvtDeviceSelfManagedIoInit = OnSelfManagedIoInit;
+
+        WdfDeviceInitSetPnpPowerEventCallbacks(DeviceInit, &pnpCallbacks);
+    }
 
     WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&deviceAttributes, DEVICE_EXTENSION);
 
@@ -228,6 +387,26 @@ Return Value:
 
     filterExt->rawPdoQueue = hQueue;
 
+    filterExt->numKeysPressed = 0;
+    RtlZeroMemory(&filterExt->currentKeys, sizeof(filterExt->currentKeys));
+
+    RtlZeroMemory(&filterExt->lastReported, sizeof(filterExt->lastReported));
+
+    filterExt->functionRowCount = 0;
+    RtlZeroMemory(&filterExt->functionRowKeys, sizeof(filterExt->functionRowKeys));
+
+    RtlCopyMemory(&filterExt->legacyTopRowKeys, &fnKeys_set1, sizeof(filterExt->legacyTopRowKeys));
+    RtlCopyMemory(&filterExt->legacyVivaldi, &legacyVivaldi, sizeof(filterExt->legacyVivaldi));
+
+    filterExt->functionRowCount = sizeof(filterExt->legacyVivaldi);
+    for (int i = 0; i < sizeof(filterExt->legacyVivaldi); i++) {
+        filterExt->functionRowKeys[i].MakeCode = filterExt->legacyVivaldi[i];
+        filterExt->functionRowKeys[i].Flags |= KEY_E0;
+    }
+
+    // Create a HID pdo
+    status = KbFiltr_CreateHIDPdo(hDevice, ++InstanceNo);
+
     //
     // Create a RAW pdo so we can provide a sideband communication with
     // the application. Please note that not filter drivers desire to
@@ -237,7 +416,7 @@ Return Value:
     // needed. Also look at the toaster filter driver sample for an alternate
     // approach to providing sideband communication.
     //
-    status = KbFiltr_CreateRawPdo(hDevice, ++InstanceNo);
+    //status = KbFiltr_CreateRawPdo(hDevice, ++InstanceNo);
 
     return status;
 }
@@ -762,6 +941,60 @@ Return Value:
     return retVal;
 }
 
+void updateKey(PDEVICE_EXTENSION devExt, KeySetting data) {
+    data.Flags = data.Flags & (KEY_E0 | KEY_E1 | KEY_BREAK);
+    if (data.Flags & KEY_BREAK) { //remove
+        data.Flags = data.Flags & (KEY_E0 | KEY_E1);
+        for (int i = 0; i < MAX_CURRENT_KEYS; i++) {
+            if (devExt->currentKeys[i].MakeCode == data.MakeCode &&
+                devExt->currentKeys[i].Flags == data.Flags) {
+                devExt->currentKeys[i].MakeCode = 0;
+                devExt->currentKeys[i].Flags = 0;
+            }
+            KeySetting keyCodes[MAX_CURRENT_KEYS] = { 0 };
+            int j = 0;
+            for (int k = 0; k < MAX_CURRENT_KEYS; k++) {
+                if (devExt->currentKeys[k].Flags != 0 ||
+                    devExt->currentKeys[k].MakeCode != 0) {
+                    keyCodes[j] = devExt->currentKeys[k];
+                    j++;
+                }
+            }
+            devExt->numKeysPressed = j;
+            RtlCopyMemory(&devExt->currentKeys, keyCodes, sizeof(keyCodes));
+        }
+    }
+    else {
+        for (int i = 0; i < MAX_CURRENT_KEYS; i++) {
+            if (devExt->currentKeys[i].Flags == 0x00 && devExt->currentKeys[i].MakeCode == 0x00) {
+                devExt->currentKeys[i] = data;
+                devExt->numKeysPressed++;
+                break;
+            }
+            else if (devExt->currentKeys[i].Flags == data.Flags && devExt->currentKeys[i].MakeCode == data.MakeCode) {
+                return;
+            }
+        }
+    }
+}
+
+BOOLEAN checkKey(KEYBOARD_INPUT_DATA key, KEYBOARD_INPUT_DATA report[MAX_CURRENT_KEYS]) {
+    for (int i = 0; i < MAX_CURRENT_KEYS; i++) {
+        if (report[i].MakeCode == key.MakeCode &&
+            report[i].Flags == (key.Flags & (KEY_E0 | KEY_E1))) {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+int CompareKeys(const void* raw1, const void* raw2) {
+    PKEYBOARD_INPUT_DATA data1 = (PKEYBOARD_INPUT_DATA)raw1;
+    PKEYBOARD_INPUT_DATA data2 = (PKEYBOARD_INPUT_DATA)raw2;
+    return ((data1->MakeCode - data2->MakeCode) << 4) +
+        ((data2->Flags & (KEY_E0 | KEY_E1) - (data1->Flags & (KEY_E0 | KEY_E1))));
+}
+
 VOID
 KbFilter_ServiceCallback(
     IN PDEVICE_OBJECT  DeviceObject,
@@ -806,11 +1039,141 @@ Return Value:
 
     devExt = FilterGetData(hDevice);
 
-    (*(PSERVICE_CALLBACK_ROUTINE)(ULONG_PTR) devExt->UpperConnectData.ClassService)(
-        devExt->UpperConnectData.ClassDeviceObject,
-        InputDataStart,
-        InputDataEnd,
-        InputDataConsumed);
+    PKEYBOARD_INPUT_DATA pData;
+    for (pData = InputDataStart; pData != InputDataEnd; pData++) { //First loop -> Refresh Modifier Keys and Change Legacy Keys to vivaldi bindings
+        if ((pData->Flags & (KEY_E0 | KEY_E1)) == 0) {
+            switch (pData->MakeCode)
+            {
+            case K_LCTRL: //L CTRL
+                if ((pData->Flags & KEY_BREAK) == 0) {
+                    devExt->LeftCtrlPressed = TRUE;
+                }
+                else {
+                    devExt->LeftCtrlPressed = FALSE;
+                }
+                break;
+            case K_LALT: //L Alt
+                if ((pData->Flags & KEY_BREAK) == 0) {
+                    devExt->LeftAltPressed = TRUE;
+                }
+                else {
+                    devExt->LeftAltPressed = FALSE;
+                }
+                break;
+            case K_LSHFT: //L Shift
+                if ((pData->Flags & KEY_BREAK) == 0) {
+                    devExt->LeftShiftPressed = TRUE;
+                }
+                else {
+                    devExt->LeftShiftPressed = FALSE;
+                }
+                break;
+            default:
+                for (int i = 0; i < sizeof(devExt->legacyTopRowKeys); i++) {
+                    if (pData->MakeCode == devExt->legacyTopRowKeys[i]) {
+                        pData->MakeCode = devExt->legacyVivaldi[i];
+                        pData->Flags |= KEY_E0; //All legacy vivaldi upgrades use E0 modifier
+                    }
+                }
+
+                break;
+            }
+        }
+        if ((pData->Flags & (KEY_E0 | KEY_E1)) == KEY_E0) {
+            if (pData->MakeCode == 0x5B) { //Search Key
+                if ((pData->Flags & KEY_BREAK) == 0) {
+                    devExt->SearchPressed = TRUE;
+                }
+                else {
+                    devExt->SearchPressed = FALSE;
+                }
+            }
+        }
+    }
+
+    {
+        //Now make the data HID-like for easier handling
+        ULONG i = 0;
+        for (i = 0; i < (InputDataEnd - InputDataStart); i++) {
+            KeySetting key;
+            key.MakeCode = InputDataStart[i].MakeCode;
+            key.Flags = InputDataStart[i].Flags;
+            updateKey(devExt, key);
+        }
+        *InputDataConsumed = i;
+    }
+
+    KEYBOARD_INPUT_DATA newReport[MAX_CURRENT_KEYS] = { 0 };
+    for (int i = 0; i < devExt->numKeysPressed; i++) { //Prepare new report for remapper to sort through
+        newReport[i].MakeCode = devExt->currentKeys[i].MakeCode;
+        newReport[i].Flags = devExt->currentKeys[i].Flags;
+    }
+
+    //Remove any empty keys
+    int newReportKeysPresent = 0;
+    for (int i = 0; i < MAX_CURRENT_KEYS; i++) {
+        if (newReport[i].Flags != 0 ||
+            newReport[i].MakeCode != 0) {
+            newReport[newReportKeysPresent] = newReport[i];
+            newReportKeysPresent++;
+        }
+    }
+    for (int i = newReportKeysPresent; i < MAX_CURRENT_KEYS; i++) {
+        RtlZeroMemory(&newReport[i], sizeof(newReport[i]));
+    }
+
+    //Now add all the removed keys
+    int reportSize = newReportKeysPresent;
+    for (int i = 0; i < MAX_CURRENT_KEYS; i++) {
+        if (devExt->lastReported[i].MakeCode == 0 && devExt->lastReported[i].Flags == 0)
+            break;
+        if (!checkKey(devExt->lastReported[i], newReport)) {
+            newReport[reportSize].MakeCode = devExt->lastReported[i].MakeCode;
+            newReport[reportSize].Flags = devExt->lastReported[i].Flags | KEY_BREAK;
+
+            reportSize++;
+            if (reportSize == (MAX_CURRENT_KEYS - 1))
+                break;
+        }
+    }
+
+    RtlZeroMemory(devExt->lastReported, sizeof(devExt->lastReported));
+    RtlCopyMemory(devExt->lastReported, newReport, sizeof(newReport[0]) * newReportKeysPresent);
+
+    //Now prepare the report
+    for (int i = 0; i < reportSize; i++) {
+        newReport[i].UnitId = InputDataStart[0].UnitId;
+    }
+
+    DbgPrint("HID -> PS/2 report size: %d. PS/2 report size: %d\n", reportSize, (ULONG)(InputDataEnd - InputDataStart));
+
+    qsort(newReport, reportSize, sizeof(*newReport), CompareKeys);
+    qsort(InputDataStart, InputDataEnd - InputDataStart, sizeof(*InputDataStart), CompareKeys);
+
+    for (int i = 0; i < min(reportSize, InputDataEnd - InputDataStart); i++) {
+        if (newReport[i].Flags != InputDataStart[i].Flags ||
+            newReport[i].MakeCode != InputDataStart[i].MakeCode) {
+            DbgPrint("\tExpected code 0x%x [flag %d]; Got code 0x%x [flag %d]\n", InputDataStart[i].MakeCode, InputDataStart[i].Flags, newReport[i].MakeCode, newReport[i].Flags);
+        }
+    }
+
+    for (int i = 0; i < reportSize; i++) {
+        BOOLEAN test = (newReport[i].MakeCode != newReport[i + 1].MakeCode ||
+            (newReport[i].Flags & (KEY_E0 | KEY_E1)) != (newReport[i + 1].Flags & (KEY_E0 | KEY_E1)));
+        if (!test) {
+            DbgPrint("Found duplicate!!!. Flags? %d vs %d\n", newReport[i].Flags, newReport[i + 1].Flags);
+        }
+    }
+
+    ULONG DataConsumed;
+
+    if (reportSize > 0) {
+        (*(PSERVICE_CALLBACK_ROUTINE)(ULONG_PTR)devExt->UpperConnectData.ClassService)(
+            devExt->UpperConnectData.ClassDeviceObject,
+            newReport,
+            newReport + reportSize,
+            &DataConsumed);
+    }
 }
 
 VOID
