@@ -187,8 +187,6 @@ typedef struct _DEVICE_EXTENSION
     RemappedKeyStruct remappedKeys[MAX_CURRENT_KEYS];
     int numRemaps;
 
-    KEYBOARD_INPUT_DATA lastReported[MAX_CURRENT_KEYS];
-
     PCALLBACK_OBJECT CSSettingsCallback;
     PVOID CSSettingsCallbackObj;
 

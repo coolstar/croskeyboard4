@@ -396,8 +396,6 @@ Return Value:
     RtlZeroMemory(&filterExt->remappedKeys, sizeof(filterExt->remappedKeys));
     filterExt->numRemaps = 0;
 
-    RtlZeroMemory(&filterExt->lastReported, sizeof(filterExt->lastReported));
-
     filterExt->functionRowCount = 0;
     RtlZeroMemory(&filterExt->functionRowKeys, sizeof(filterExt->functionRowKeys));
 
@@ -1313,9 +1311,6 @@ Return Value:
         newReport[reportSize].Flags = devExt->lastKeyPressed.Flags;
         reportSize++;
     }
-
-    RtlZeroMemory(devExt->lastReported, sizeof(devExt->lastReported));
-    RtlCopyMemory(devExt->lastReported, newReport, sizeof(newReport[0]) * newReportKeysPresent);
 
     //Now prepare the report
     for (int i = 0; i < reportSize; i++) {
