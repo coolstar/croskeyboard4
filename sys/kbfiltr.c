@@ -114,6 +114,8 @@ const UINT8 fnKeys_set1[] = {
     0x3B, 0x3C, 0x3D, 0x3E, 0x3F, 0x40, 0x41, 0x42, 0x43, 0x44, 0x57, 0x58
 };
 
+#define KEY_TYPES (KEY_E0 | KEY_E1 | KEY_RIM_VKEY | KEY_FROM_KEYBOARD_OVERRIDER)
+
 #define K_LCTRL     0x1D
 #define K_LALT      0x38
 #define K_LSHFT     0x2A
@@ -956,19 +958,19 @@ void updateKey(PDEVICE_EXTENSION devExt, KeyStruct data) {
     //Apply any remaps if they were done
     for (int i = 0; i < MAX_CURRENT_KEYS; i++) {
         if (devExt->remappedKeys[i].origKey.MakeCode == data.MakeCode &&
-            devExt->remappedKeys[i].origKey.Flags == (data.Flags & (KEY_E0 | KEY_E1))) {
+            devExt->remappedKeys[i].origKey.Flags == (data.Flags & KEY_TYPES)) {
             data.MakeCode = devExt->remappedKeys[i].remappedKey.MakeCode;
-            data.Flags = devExt->remappedKeys[i].remappedKey.Flags | (data.Flags & ~(KEY_E0 | KEY_E1));
+            data.Flags = devExt->remappedKeys[i].remappedKey.Flags | (data.Flags & ~KEY_TYPES);
             break;
         }
     }
 
     garbageCollect(devExt);
 
-    data.Flags = data.Flags & (KEY_E0 | KEY_E1 | KEY_BREAK);
+    data.Flags = data.Flags & (KEY_TYPES | KEY_BREAK);
     if (data.Flags & KEY_BREAK) { //remove
-        data.Flags = data.Flags & (KEY_E0 | KEY_E1);
-        origData.Flags = origData.Flags & (KEY_E0 | KEY_E1);
+        data.Flags = data.Flags & KEY_TYPES;
+        origData.Flags = origData.Flags & KEY_TYPES;
         if (devExt->lastKeyPressed.MakeCode == data.MakeCode &&
             devExt->lastKeyPressed.Flags == data.Flags) {
             RtlZeroMemory(&devExt->lastKeyPressed, sizeof(devExt->lastKeyPressed));
@@ -1076,7 +1078,7 @@ void garbageCollect(PDEVICE_EXTENSION devExt) {
 BOOLEAN checkKey(KEYBOARD_INPUT_DATA key, KeyStruct report[MAX_CURRENT_KEYS]) {
     for (int i = 0; i < MAX_CURRENT_KEYS; i++) {
         if (report[i].MakeCode == key.MakeCode &&
-            report[i].Flags == (key.Flags & (KEY_E0 | KEY_E1))) {
+            report[i].Flags == (key.Flags & KEY_TYPES)) {
             return TRUE;
         }
     }
@@ -1096,13 +1098,14 @@ void RemapPassthrough(PDEVICE_EXTENSION devExt, KEYBOARD_INPUT_DATA data[MAX_CUR
         for (int j = 0; j < devExt->functionRowCount; j++) { //Set back to F1 -> F12 for passthrough
             if (data[i].MakeCode == devExt->functionRowKeys[j].MakeCode &&
                 data[i].Flags == devExt->functionRowKeys->Flags) {
-                RemappedKeyStruct remappedStruct = { 0 }; //register remap
+                RemappedKeyStruct remappedStruct = { 0 }; //register remap (Vivaldi => F1 -> F12)
                 remappedStruct.origKey.MakeCode = data[i].MakeCode;
                 remappedStruct.origKey.Flags = data[i].Flags;
                 remappedStruct.remappedKey.MakeCode = fnKeys_set1[j];
+                remappedStruct.remappedKey.Flags = KEY_E0;
 
                 if (addRemap(devExt, remappedStruct)) {
-                    data[i].Flags &= ~(KEY_E0 | KEY_E1);
+                    data[i].Flags &= ~KEY_TYPES;
                     data[i].MakeCode = fnKeys_set1[j];
                 }
             }
@@ -1137,7 +1140,7 @@ void RemapLegacy(PDEVICE_EXTENSION devExt, KEYBOARD_INPUT_DATA data[MAX_CURRENT_
                     remappedStruct.remappedKey.MakeCode = fnKeys_set1[j];
 
                     if (addRemap(devExt, remappedStruct)) {
-                        data[i].Flags &= ~(KEY_E0 | KEY_E1);
+                        data[i].Flags &= ~KEY_TYPES;
                         data[i].MakeCode = fnKeys_set1[j];
                     }
                 }
@@ -1206,7 +1209,7 @@ Return Value:
 
     PKEYBOARD_INPUT_DATA pData;
     for (pData = InputDataStart; pData != InputDataEnd; pData++) { //First loop -> Refresh Modifier Keys and Change Legacy Keys to vivaldi bindings
-        if ((pData->Flags & (KEY_E0 | KEY_E1)) == 0) {
+        if ((pData->Flags & KEY_TYPES) == 0) {
             switch (pData->MakeCode)
             {
             case K_LCTRL: //L CTRL
@@ -1244,7 +1247,7 @@ Return Value:
                 break;
             }
         }
-        if ((pData->Flags & (KEY_E0 | KEY_E1)) == KEY_E0) {
+        if ((pData->Flags & KEY_TYPES) == KEY_E0) {
             if (pData->MakeCode == 0x5B) { //Search Key
                 if ((pData->Flags & KEY_BREAK) == 0) {
                     devExt->SearchPressed = TRUE;
