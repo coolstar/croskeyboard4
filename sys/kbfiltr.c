@@ -389,6 +389,7 @@ Return Value:
 
     filterExt->numKeysPressed = 0;
     RtlZeroMemory(&filterExt->currentKeys, sizeof(filterExt->currentKeys));
+    RtlZeroMemory(&filterExt->lastKeyPressed, sizeof(filterExt->lastKeyPressed));
 
     RtlZeroMemory(&filterExt->lastReported, sizeof(filterExt->lastReported));
 
@@ -948,33 +949,6 @@ void updateKey(PDEVICE_EXTENSION devExt, KeyStruct data) {
         }
     }
 
-    data.Flags = data.Flags & (KEY_E0 | KEY_E1 | KEY_BREAK);
-    if (data.Flags & KEY_BREAK) { //remove
-        data.Flags = data.Flags & (KEY_E0 | KEY_E1);
-        for (int i = 0; i < MAX_CURRENT_KEYS; i++) {
-            if (devExt->currentKeys[i].MakeCode == data.MakeCode &&
-                devExt->currentKeys[i].Flags == data.Flags) {
-                devExt->currentKeys[i].InternalFlags |= INTFLAG_REMOVED;
-            }
-            else if (devExt->currentKeys[i].Flags != 0 ||
-                devExt->currentKeys[i].MakeCode != 0) {
-            }
-        }
-    }
-    else {
-        for (int i = 0; i < MAX_CURRENT_KEYS; i++) {
-            if (devExt->currentKeys[i].Flags == 0x00 && devExt->currentKeys[i].MakeCode == 0x00) {
-                devExt->currentKeys[i] = data;
-                devExt->currentKeys[i].InternalFlags |= INTFLAG_NEW;
-                devExt->numKeysPressed++;
-                break;
-            }
-            else if (devExt->currentKeys[i].Flags == data.Flags && devExt->currentKeys[i].MakeCode == data.MakeCode) {
-                return;
-            }
-        }
-    }
-
     for (int i = 0; i < MAX_CURRENT_KEYS; i++) {
         KeyStruct keyCodes[MAX_CURRENT_KEYS] = { 0 };
         int j = 0;
@@ -987,6 +961,36 @@ void updateKey(PDEVICE_EXTENSION devExt, KeyStruct data) {
         }
         devExt->numKeysPressed = j;
         RtlCopyMemory(&devExt->currentKeys, keyCodes, sizeof(keyCodes));
+    }
+
+    data.Flags = data.Flags & (KEY_E0 | KEY_E1 | KEY_BREAK);
+    if (data.Flags & KEY_BREAK) { //remove
+        data.Flags = data.Flags & (KEY_E0 | KEY_E1);
+        if (devExt->lastKeyPressed.MakeCode == data.MakeCode &&
+            devExt->lastKeyPressed.Flags == data.Flags) {
+            RtlZeroMemory(&devExt->lastKeyPressed, sizeof(devExt->lastKeyPressed));
+        }
+
+        for (int i = 0; i < MAX_CURRENT_KEYS; i++) {
+            if (devExt->currentKeys[i].MakeCode == data.MakeCode &&
+                devExt->currentKeys[i].Flags == data.Flags) {
+                devExt->currentKeys[i].InternalFlags |= INTFLAG_REMOVED;
+            }
+        }
+    }
+    else {
+        for (int i = 0; i < MAX_CURRENT_KEYS; i++) {
+            if (devExt->currentKeys[i].Flags == 0x00 && devExt->currentKeys[i].MakeCode == 0x00) {
+                devExt->currentKeys[i] = data;
+                devExt->currentKeys[i].InternalFlags |= INTFLAG_NEW;
+                devExt->numKeysPressed++;
+                devExt->lastKeyPressed = data;
+                break;
+            }
+            else if (devExt->currentKeys[i].Flags == data.Flags && devExt->currentKeys[i].MakeCode == data.MakeCode) {
+                break;
+            }
+        }
     }
 }
 
@@ -1107,7 +1111,7 @@ Return Value:
         //Now make the data HID-like for easier handling
         ULONG i = 0;
         for (i = 0; i < (InputDataEnd - InputDataStart); i++) {
-            KeyStruct key;
+            KeyStruct key = { 0 };
             key.MakeCode = InputDataStart[i].MakeCode;
             key.Flags = InputDataStart[i].Flags;
             updateKey(devExt, key);
@@ -1116,12 +1120,21 @@ Return Value:
     }
 
     KEYBOARD_INPUT_DATA newReport[MAX_CURRENT_KEYS] = { 0 };
-    //Add new keys
-    for (int i = 0, j = 0; i < devExt->numKeysPressed; i++) { //Prepare new report for remapper to sort through
-        if (devExt->currentKeys[i].InternalFlags & INTFLAG_NEW) {
-            newReport[j].MakeCode = devExt->currentKeys[i].MakeCode;
-            newReport[j].Flags = devExt->currentKeys[i].Flags;
-            devExt->currentKeys[i].InternalFlags &= ~INTFLAG_NEW;
+    {
+        //Add new keys
+        int j = 0;
+        for (int i = 0; i < devExt->numKeysPressed; i++) { //Prepare new report for remapper to sort through
+            if (devExt->currentKeys[i].InternalFlags & INTFLAG_NEW) {
+                newReport[j].MakeCode = devExt->currentKeys[i].MakeCode;
+                newReport[j].Flags = devExt->currentKeys[i].Flags;
+                devExt->currentKeys[i].InternalFlags &= ~INTFLAG_NEW;
+                j++;
+            }
+        }
+        //If no keys, add the last key (if present)
+        if (j == 0 && (devExt->lastKeyPressed.MakeCode != 0 || devExt->lastKeyPressed.Flags != 0)) {
+            newReport[j].MakeCode = devExt->lastKeyPressed.MakeCode;
+            newReport[j].Flags = devExt->lastKeyPressed.Flags;
             j++;
         }
     }

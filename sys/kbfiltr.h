@@ -176,6 +176,7 @@ typedef struct _DEVICE_EXTENSION
     BOOLEAN SearchPressed;
 
     KeyStruct currentKeys[MAX_CURRENT_KEYS];
+    KeyStruct lastKeyPressed;
     int numKeysPressed;
 
     KEYBOARD_INPUT_DATA lastReported[MAX_CURRENT_KEYS];
