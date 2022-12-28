@@ -1120,21 +1120,12 @@ Return Value:
     }
 
     KEYBOARD_INPUT_DATA newReport[MAX_CURRENT_KEYS] = { 0 };
-    {
-        //Add new keys
-        int j = 0;
-        for (int i = 0; i < devExt->numKeysPressed; i++) { //Prepare new report for remapper to sort through
-            if (devExt->currentKeys[i].InternalFlags & INTFLAG_NEW) {
-                newReport[j].MakeCode = devExt->currentKeys[i].MakeCode;
-                newReport[j].Flags = devExt->currentKeys[i].Flags;
-                devExt->currentKeys[i].InternalFlags &= ~INTFLAG_NEW;
-                j++;
-            }
-        }
-        //If no keys, add the last key (if present)
-        if (j == 0 && (devExt->lastKeyPressed.MakeCode != 0 || devExt->lastKeyPressed.Flags != 0)) {
-            newReport[j].MakeCode = devExt->lastKeyPressed.MakeCode;
-            newReport[j].Flags = devExt->lastKeyPressed.Flags;
+    //Add new keys
+    for (int i = 0, j = 0; i < devExt->numKeysPressed; i++) { //Prepare new report for remapper to sort through
+        if (devExt->currentKeys[i].InternalFlags & INTFLAG_NEW) {
+            newReport[j].MakeCode = devExt->currentKeys[i].MakeCode;
+            newReport[j].Flags = devExt->currentKeys[i].Flags;
+            devExt->currentKeys[i].InternalFlags &= ~INTFLAG_NEW;
             j++;
         }
     }
@@ -1161,6 +1152,13 @@ Return Value:
             newReport[reportSize].Flags = devExt->currentKeys[i].Flags | KEY_BREAK;
             reportSize++;
         }
+    }
+
+    //If empty report keys, add the last key (if present)
+    if (reportSize == 0 && (devExt->lastKeyPressed.MakeCode != 0 || devExt->lastKeyPressed.Flags != 0)) {
+        newReport[reportSize].MakeCode = devExt->lastKeyPressed.MakeCode;
+        newReport[reportSize].Flags = devExt->lastKeyPressed.Flags;
+        reportSize++;
     }
 
     RtlZeroMemory(devExt->lastReported, sizeof(devExt->lastReported));
