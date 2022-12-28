@@ -948,17 +948,11 @@ Return Value:
 void updateKey(PDEVICE_EXTENSION devExt, KeyStruct data) {
     for (int i = 0; i < MAX_CURRENT_KEYS; i++) {
         if (devExt->currentKeys[i].InternalFlags & INTFLAG_REMOVED) {
-            for (int j = 0; j < MAX_CURRENT_KEYS; j++) { //Remove any remaps if the original key is to be removed
-                if (devExt->remappedKeys[j].origKey.MakeCode == devExt->currentKeys[i].MakeCode &&
-                    devExt->remappedKeys[j].origKey.Flags == devExt->currentKeys[i].Flags) {
-                    RtlZeroMemory(&devExt->remappedKeys[j], sizeof(devExt->remappedKeys[0]));
-                }
-            }
-
             RtlZeroMemory(&devExt->currentKeys[i], sizeof(devExt->currentKeys[0])); //Remove any keys marked to be removed
         }
     }
 
+    KeyStruct origData = data;
     //Apply any remaps if they were done
     for (int i = 0; i < MAX_CURRENT_KEYS; i++) {
         if (devExt->remappedKeys[i].origKey.MakeCode == data.MakeCode &&
@@ -974,6 +968,7 @@ void updateKey(PDEVICE_EXTENSION devExt, KeyStruct data) {
     data.Flags = data.Flags & (KEY_E0 | KEY_E1 | KEY_BREAK);
     if (data.Flags & KEY_BREAK) { //remove
         data.Flags = data.Flags & (KEY_E0 | KEY_E1);
+        origData.Flags = origData.Flags & (KEY_E0 | KEY_E1);
         if (devExt->lastKeyPressed.MakeCode == data.MakeCode &&
             devExt->lastKeyPressed.Flags == data.Flags) {
             RtlZeroMemory(&devExt->lastKeyPressed, sizeof(devExt->lastKeyPressed));
@@ -982,6 +977,13 @@ void updateKey(PDEVICE_EXTENSION devExt, KeyStruct data) {
         for (int i = 0; i < MAX_CURRENT_KEYS; i++) {
             if (devExt->currentKeys[i].MakeCode == data.MakeCode &&
                 devExt->currentKeys[i].Flags == data.Flags) {
+                for (int j = 0; j < MAX_CURRENT_KEYS; j++) { //Remove any remaps if the original key is to be removed
+                    if (devExt->remappedKeys[j].origKey.MakeCode == origData.MakeCode &&
+                        devExt->remappedKeys[j].origKey.Flags == origData.Flags) {
+                        RtlZeroMemory(&devExt->remappedKeys[j], sizeof(devExt->remappedKeys[0]));
+                    }
+                }
+
                 devExt->currentKeys[i].InternalFlags |= INTFLAG_REMOVED;
             }
         }
