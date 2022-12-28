@@ -116,6 +116,11 @@ typedef struct KeyStruct {
     USHORT InternalFlags;
 } KeyStruct, * PKeyStruct;
 
+typedef struct RemappedKeyStruct {
+    struct KeyStruct origKey;
+    struct KeyStruct remappedKey;
+} RemappedKeyStruct, * PRemappedKeyStruct;
+
 #define MAX_CURRENT_KEYS 20
 
 typedef struct _DEVICE_EXTENSION
@@ -178,6 +183,9 @@ typedef struct _DEVICE_EXTENSION
     KeyStruct currentKeys[MAX_CURRENT_KEYS];
     KeyStruct lastKeyPressed;
     int numKeysPressed;
+
+    RemappedKeyStruct remappedKeys[MAX_CURRENT_KEYS];
+    int numRemaps;
 
     KEYBOARD_INPUT_DATA lastReported[MAX_CURRENT_KEYS];
 
