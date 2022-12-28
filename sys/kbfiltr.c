@@ -1099,11 +1099,11 @@ void RemapPassthrough(PDEVICE_EXTENSION devExt, KEYBOARD_INPUT_DATA data[MAX_CUR
                 RemappedKeyStruct remappedStruct = { 0 }; //register remap
                 remappedStruct.origKey.MakeCode = data[i].MakeCode;
                 remappedStruct.origKey.Flags = data[i].Flags;
-                remappedStruct.remappedKey.MakeCode = fnKeys_set1[i];
+                remappedStruct.remappedKey.MakeCode = fnKeys_set1[j];
 
                 if (addRemap(devExt, remappedStruct)) {
                     data[i].Flags &= ~(KEY_E0 | KEY_E1);
-                    data[i].MakeCode = fnKeys_set1[i];
+                    data[i].MakeCode = fnKeys_set1[j];
                 }
             }
         }
@@ -1134,11 +1134,11 @@ void RemapLegacy(PDEVICE_EXTENSION devExt, KEYBOARD_INPUT_DATA data[MAX_CURRENT_
                     RemappedKeyStruct remappedStruct = { 0 }; //register remap
                     remappedStruct.origKey.MakeCode = data[i].MakeCode;
                     remappedStruct.origKey.Flags = data[i].Flags;
-                    remappedStruct.remappedKey.MakeCode = fnKeys_set1[i];
+                    remappedStruct.remappedKey.MakeCode = fnKeys_set1[j];
 
                     if (addRemap(devExt, remappedStruct)) {
                         data[i].Flags &= ~(KEY_E0 | KEY_E1);
-                        data[i].MakeCode = fnKeys_set1[i];
+                        data[i].MakeCode = fnKeys_set1[j];
                     }
                 }
             }
