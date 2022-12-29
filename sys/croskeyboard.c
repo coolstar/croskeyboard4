@@ -10,7 +10,7 @@ Copyright (c) Microsoft Corporation.  All rights reserved.
 
 Module Name:
 
-    kbfiltr.c
+    croskeyboard.c
 
 Abstract: This is an upper device filter driver sample for PS/2 keyboard. This
         driver layers in between the KbdClass driver and i8042prt driver and
@@ -37,7 +37,7 @@ Environment:
 
 --*/
 
-#include "kbfiltr.h"
+#include "croskeyboard.h"
 #include <stdlib.h>
 
 #ifdef ALLOC_PRAGMA

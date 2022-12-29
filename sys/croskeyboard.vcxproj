@@ -159,7 +159,7 @@
     </Inf>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="kbfiltr.c" />
+    <ClCompile Include="croskeyboard.c" />
     <ClCompile Include="rawpdo.c" />
     <ResourceCompile Include="kbfiltr.rc" />
   </ItemGroup>
@@ -173,7 +173,7 @@
     <None Exclude="@(None)" Include="*.def;*.bat;*.hpj;*.asmx" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Exclude="@(ClInclude)" Include="*.h;*.hpp;*.hxx;*.hm;*.inl;*.xsd" />
+    <ClInclude Exclude="@(ClInclude)" Include="croskeyboard.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

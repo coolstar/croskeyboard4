@@ -19,7 +19,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="kbfiltr.c">
+    <ClCompile Include="croskeyboard.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="rawpdo.c">
@@ -32,6 +32,12 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="croskeyboard.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="public.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="*.h;*.hpp;*.hxx;*.hm;*.inl;*.xsd">
       <Filter>Header Files</Filter>
     </ClInclude>

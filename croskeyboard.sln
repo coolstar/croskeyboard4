@@ -9,7 +9,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Sys", "Sys", "{4F78C4A7-C56
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kbftest", "exe\kbftest.vcxproj", "{CB35D9AC-AD35-4381-ADA4-84378289F086}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kbfiltr", "sys\kbfiltr.vcxproj", "{7227DB35-883A-4EF0-B083-1698CFEF85A3}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "croskeyboard", "sys\croskeyboard.vcxproj", "{7227DB35-883A-4EF0-B083-1698CFEF85A3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
