@@ -27,7 +27,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="kbfiltr.rc">
+    <ResourceCompile Include="croskeyboard.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
   </ItemGroup>

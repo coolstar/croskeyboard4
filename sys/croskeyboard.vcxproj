@@ -161,7 +161,7 @@
   <ItemGroup>
     <ClCompile Include="croskeyboard.c" />
     <ClCompile Include="rawpdo.c" />
-    <ResourceCompile Include="kbfiltr.rc" />
+    <ResourceCompile Include="croskeyboard.rc" />
   </ItemGroup>
   <ItemGroup>
     <Inf Exclude="@(Inf)" Include="croskeyboard.inx" />

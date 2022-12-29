@@ -4,8 +4,8 @@
 
 #define VER_FILETYPE                VFT_DRV
 #define VER_FILESUBTYPE             VFT2_DRV_SYSTEM
-#define VER_FILEDESCRIPTION_STR     "Example Keyboard Filter Driver"
-#define VER_INTERNALNAME_STR        "kbfiltr.sys"
+#define VER_FILEDESCRIPTION_STR     "Chromebook Keyboard Driver"
+#define VER_INTERNALNAME_STR        "croskeyboard.sys"
 
 #include "common.ver"
 
