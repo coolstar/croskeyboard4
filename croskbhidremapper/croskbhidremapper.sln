@@ -1,11 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.23107.0
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31829.152
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "croskbhidremapper", "croskbhidremapper\croskbhidremapper.vcxproj", "{E0C3F023-6A54-419C-9C6E-E0638B55D99F}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "croskbhidremapper Package", "croskbhidremapper Package\croskbhidremapper Package.vcxproj", "{D47D5E26-2CB1-4445-8B46-6D1AC3E0694F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -35,28 +33,11 @@ Global
 		{E0C3F023-6A54-419C-9C6E-E0638B55D99F}.Release|x64.Build.0 = Release|x64
 		{E0C3F023-6A54-419C-9C6E-E0638B55D99F}.Release|x86.ActiveCfg = Release|Win32
 		{E0C3F023-6A54-419C-9C6E-E0638B55D99F}.Release|x86.Build.0 = Release|Win32
-		{D47D5E26-2CB1-4445-8B46-6D1AC3E0694F}.Debug|ARM.ActiveCfg = Debug|ARM
-		{D47D5E26-2CB1-4445-8B46-6D1AC3E0694F}.Debug|ARM.Build.0 = Debug|ARM
-		{D47D5E26-2CB1-4445-8B46-6D1AC3E0694F}.Debug|ARM64.ActiveCfg = Debug|ARM64
-		{D47D5E26-2CB1-4445-8B46-6D1AC3E0694F}.Debug|ARM64.Build.0 = Debug|ARM64
-		{D47D5E26-2CB1-4445-8B46-6D1AC3E0694F}.Debug|x64.ActiveCfg = Debug|x64
-		{D47D5E26-2CB1-4445-8B46-6D1AC3E0694F}.Debug|x64.Build.0 = Debug|x64
-		{D47D5E26-2CB1-4445-8B46-6D1AC3E0694F}.Debug|x64.Deploy.0 = Debug|x64
-		{D47D5E26-2CB1-4445-8B46-6D1AC3E0694F}.Debug|x86.ActiveCfg = Debug|Win32
-		{D47D5E26-2CB1-4445-8B46-6D1AC3E0694F}.Debug|x86.Build.0 = Debug|Win32
-		{D47D5E26-2CB1-4445-8B46-6D1AC3E0694F}.Debug|x86.Deploy.0 = Debug|Win32
-		{D47D5E26-2CB1-4445-8B46-6D1AC3E0694F}.Release|ARM.ActiveCfg = Release|ARM
-		{D47D5E26-2CB1-4445-8B46-6D1AC3E0694F}.Release|ARM.Build.0 = Release|ARM
-		{D47D5E26-2CB1-4445-8B46-6D1AC3E0694F}.Release|ARM64.ActiveCfg = Release|ARM64
-		{D47D5E26-2CB1-4445-8B46-6D1AC3E0694F}.Release|ARM64.Build.0 = Release|ARM64
-		{D47D5E26-2CB1-4445-8B46-6D1AC3E0694F}.Release|x64.ActiveCfg = Release|x64
-		{D47D5E26-2CB1-4445-8B46-6D1AC3E0694F}.Release|x64.Build.0 = Release|x64
-		{D47D5E26-2CB1-4445-8B46-6D1AC3E0694F}.Release|x64.Deploy.0 = Release|x64
-		{D47D5E26-2CB1-4445-8B46-6D1AC3E0694F}.Release|x86.ActiveCfg = Release|Win32
-		{D47D5E26-2CB1-4445-8B46-6D1AC3E0694F}.Release|x86.Build.0 = Release|Win32
-		{D47D5E26-2CB1-4445-8B46-6D1AC3E0694F}.Release|x86.Deploy.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {EDB8A6EF-8960-4FF7-AEB7-4D5038938614}
 	EndGlobalSection
 EndGlobal

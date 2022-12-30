@@ -1,14 +1,14 @@
-#if !defined(_CROSKEYBOARD_COMMON_H_)
-#define _CROSKEYBOARD_COMMON_H_
+#if !defined(_CROSKBHIDREMAPPER_COMMON_H_)
+#define _CROSKBHIDREMAPPER_COMMON_H_
 
 //
 //These are the device attributes returned by vmulti in response
 // to IOCTL_HID_GET_DEVICE_ATTRIBUTES.
 //
 
-#define CROSKEYBOARD_PID              0x0303
-#define CROSKEYBOARD_VID              0x18D1
-#define CROSKEYBOARD_VERSION          0x0001
+#define CROSKBHIDREMAPPER_PID              0x0303
+#define CROSKBHIDREMAPPER_VID              0x18D1
+#define CROSKBHIDREMAPPER_VERSION          0x0004
 
 //
 // These are the report ids
@@ -35,7 +35,7 @@
 #define KBD_KEY_CODES        6
 
 #pragma pack(1)
-typedef struct _CROSKEYBOARD_KEYBOARD_REPORT
+typedef struct _CROSKBHIDREMAPPER_KEYBOARD_REPORT
 {
 
 	BYTE      ReportID;
@@ -50,12 +50,12 @@ typedef struct _CROSKEYBOARD_KEYBOARD_REPORT
 	// for a list of key codes
 	BYTE      KeyCodes[KBD_KEY_CODES];
 
-} CrosKeyboardKeyboardReport;
+} CrosKBHIDRemapperKeyboardReport;
 
 #pragma pack()
 
 #pragma pack(1)
-typedef struct _CROSKEYBOARD_MEDIA_REPORT
+typedef struct _CROSKBHIDREMAPPER_MEDIA_REPORT
 {
 
 	BYTE      ReportID;
@@ -64,12 +64,12 @@ typedef struct _CROSKEYBOARD_MEDIA_REPORT
 
 	BYTE	  Reserved;
 
-} CrosKeyboardMediaReport;
+} CrosKBHIDRemapperMediaReport;
 
 #pragma pack()
 
 #pragma pack(1)
-typedef struct _CROSKEYBOARD_SPECKEY_REPORT
+typedef struct _CROSKBHIDREMAPPER_SPECKEY_REPORT
 {
 
 	BYTE      ReportID;
@@ -78,7 +78,7 @@ typedef struct _CROSKEYBOARD_SPECKEY_REPORT
 
 	BYTE	  Reserved;
 
-} CrosKeyboardSpecialKeyReport;
+} CrosKBHIDRemapperSpecialKeyReport;
 
 #pragma pack()
 
@@ -91,7 +91,7 @@ typedef struct _CROSKEYBOARD_SPECKEY_REPORT
 #define DEVICE_MODE_MULTI_INPUT  0x02
 
 #pragma pack(1)
-typedef struct _CROSKEYBOARD_FEATURE_REPORT
+typedef struct _CROSKBHIDREMAPPER_FEATURE_REPORT
 {
 
 	BYTE      ReportID;
@@ -100,20 +100,10 @@ typedef struct _CROSKEYBOARD_FEATURE_REPORT
 
 	BYTE      DeviceIdentifier;
 
-} CrosKeyboardFeatureReport;
-
-typedef struct _CROSKEYBOARD_MAXCOUNT_REPORT
-{
-
-	BYTE         ReportID;
-
-	BYTE         MaximumCount;
-
-} CrosKeyboardMaxCountReport;
-#pragma pack()
+} CrosKBHIDRemapperFeatureReport;
 
 #pragma pack(1)
-typedef struct _CROSKEYBOARD_SETTINGS_REPORT
+typedef struct _CROSKBHIDREMAPPER_SETTINGS_REPORT
 {
 
 	BYTE        ReportID;
@@ -122,7 +112,7 @@ typedef struct _CROSKEYBOARD_SETTINGS_REPORT
 
 	BYTE		SettingsValue;
 
-} CrosKeyboardSettingsReport;
+} CrosKBHIDRemapperSettingsReport;
 #pragma pack()
 
 #endif

@@ -1,5 +1,5 @@
-#if !defined(_CROSKEYBOARD_H_)
-#define _CROSKEYBOARD_H_
+#if !defined(_CROSKBHIDREMAPPER_H_)
+#define _CROSKBHIDREMAPPER_H_
 
 #pragma warning(disable:4200)  // suppress nameless struct/union warning
 #pragma warning(disable:4201)  // suppress nameless struct/union warning
@@ -34,14 +34,14 @@ EVT_WDF_OBJECT_CONTEXT_CLEANUP  OnDriverCleanup;
 // String definitions
 //
 
-#define DRIVERNAME                 "croskeyboard3.sys: "
+#define DRIVERNAME                 "croskbhidremapper.sys: "
 
-#define CROSKEYBOARD_POOL_TAG            (ULONG) 'lmtA'
-#define CROSKEYBOARD_HARDWARE_IDS        L"CoolStar\\CrosKeyboard\0\0"
-#define CROSKEYBOARD_HARDWARE_IDS_LENGTH sizeof(CROSKEYBOARD_HARDWARE_IDS)
+#define CROSKBHIDREMAPPER_POOL_TAG            (ULONG) 'bkrC'
+#define CROSKBHIDREMAPPER_HARDWARE_IDS        L"CoolStar\\CrosKBHIDRemapper\0\0"
+#define CROSKBHIDREMAPPER_HARDWARE_IDS_LENGTH sizeof(CROSKBHIDREMAPPER_HARDWARE_IDS)
 
-#define NTDEVICE_NAME_STRING       L"\\Device\\CrosKeyboard"
-#define SYMBOLIC_NAME_STRING       L"\\DosDevices\\CrosKeyboard"
+#define NTDEVICE_NAME_STRING       L"\\Device\\CrosKBHIDRemapper"
+#define SYMBOLIC_NAME_STRING       L"\\DosDevices\\CrosKBHIDRemapper"
 //
 // This is the default report descriptor for the Hid device provided
 // by the mini driver in response to IOCTL_HID_GET_REPORT_DESCRIPTOR.
@@ -159,56 +159,16 @@ CONST HID_DESCRIPTOR DefaultHidDescriptor = {
 #define true 1
 #define false 0
 
-struct croskeyboardsettings {
-	int keyboardMapping = 1;
-	int mapSearchToCapsLock = 0;
-	int powerKeyAsDelete = 0;
-};
-
-typedef struct _CROSKEYBOARD_CONTEXT
+typedef struct _CROSKBHIDREMAPPER_CONTEXT
 {
 
 	WDFQUEUE ReportQueue;
 
 	BYTE DeviceMode;
 
-	WDFINTERRUPT Interrupt;
+} CROSKBHIDREMAPPER_CONTEXT, *PCROSKBHIDREMAPPER_CONTEXT;
 
-	BOOLEAN ConnectInterrupt;
-
-	WDFTIMER Timer;
-
-	bool PrepareForRight;
-
-	bool LeftCtrl;
-
-	bool RightCtrl;
-
-	bool LeftAlt;
-
-	bool RightAlt;
-
-	bool LeftShift;
-
-	bool RightShift;
-
-	bool LeftWin;
-
-	bool RightWin;
-
-	unsigned char lastps2code = 0x00;
-
-	int lastps2codeint = 0x00;
-
-	LONGLONG lastRead;
-
-	BYTE keyCodes[KBD_KEY_CODES];
-
-	struct croskeyboardsettings settings;
-
-} CROSKEYBOARD_CONTEXT, *PCROSKEYBOARD_CONTEXT;
-
-WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(CROSKEYBOARD_CONTEXT, GetDeviceContext)
+WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(CROSKBHIDREMAPPER_CONTEXT, GetDeviceContext)
 
 //
 // Function definitions
@@ -216,67 +176,67 @@ WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(CROSKEYBOARD_CONTEXT, GetDeviceContext)
 
 DRIVER_INITIALIZE DriverEntry;
 
-EVT_WDF_DRIVER_UNLOAD CrosKeyboardDriverUnload;
+EVT_WDF_DRIVER_UNLOAD CrosKBHIDRemapperDriverUnload;
 
-EVT_WDF_DRIVER_DEVICE_ADD CrosKeyboardEvtDeviceAdd;
+EVT_WDF_DRIVER_DEVICE_ADD CrosKBHIDRemapperEvtDeviceAdd;
 
-EVT_WDFDEVICE_WDM_IRP_PREPROCESS CrosKeyboardEvtWdmPreprocessMnQueryId;
+EVT_WDFDEVICE_WDM_IRP_PREPROCESS CrosKBHIDRemapperEvtWdmPreprocessMnQueryId;
 
-EVT_WDF_IO_QUEUE_IO_INTERNAL_DEVICE_CONTROL CrosKeyboardEvtInternalDeviceControl;
+EVT_WDF_IO_QUEUE_IO_INTERNAL_DEVICE_CONTROL CrosKBHIDRemapperEvtInternalDeviceControl;
 
 NTSTATUS
-CrosKeyboardGetHidDescriptor(
+CrosKBHIDRemapperGetHidDescriptor(
 	IN WDFDEVICE Device,
 	IN WDFREQUEST Request
 	);
 
 NTSTATUS
-CrosKeyboardGetReportDescriptor(
+CrosKBHIDRemapperGetReportDescriptor(
 	IN WDFDEVICE Device,
 	IN WDFREQUEST Request
 	);
 
 NTSTATUS
-CrosKeyboardGetDeviceAttributes(
+CrosKBHIDRemapperGetDeviceAttributes(
 	IN WDFREQUEST Request
 	);
 
 NTSTATUS
-CrosKeyboardGetString(
+CrosKBHIDRemapperGetString(
 	IN WDFREQUEST Request
 	);
 
 NTSTATUS
-CrosKeyboardWriteReport(
-	IN PCROSKEYBOARD_CONTEXT DevContext,
+CrosKBHIDRemapperWriteReport(
+	IN PCROSKBHIDREMAPPER_CONTEXT DevContext,
 	IN WDFREQUEST Request
 	);
 
 NTSTATUS
-CrosKeyboardProcessVendorReport(
-	IN PCROSKEYBOARD_CONTEXT DevContext,
+CrosKBHIDRemapperProcessVendorReport(
+	IN PCROSKBHIDREMAPPER_CONTEXT DevContext,
 	IN PVOID ReportBuffer,
 	IN ULONG ReportBufferLen,
 	OUT size_t* BytesWritten
 	);
 
 NTSTATUS
-CrosKeyboardReadReport(
-	IN PCROSKEYBOARD_CONTEXT DevContext,
+CrosKBHIDRemapperReadReport(
+	IN PCROSKBHIDREMAPPER_CONTEXT DevContext,
 	IN WDFREQUEST Request,
 	OUT BOOLEAN* CompleteRequest
 	);
 
 NTSTATUS
-CrosKeyboardSetFeature(
-	IN PCROSKEYBOARD_CONTEXT DevContext,
+CrosKBHIDRemapperSetFeature(
+	IN PCROSKBHIDREMAPPER_CONTEXT DevContext,
 	IN WDFREQUEST Request,
 	OUT BOOLEAN* CompleteRequest
 	);
 
 NTSTATUS
-CrosKeyboardGetFeature(
-	IN PCROSKEYBOARD_CONTEXT DevContext,
+CrosKBHIDRemapperGetFeature(
+	IN PCROSKBHIDREMAPPER_CONTEXT DevContext,
 	IN WDFREQUEST Request,
 	OUT BOOLEAN* CompleteRequest
 	);
@@ -299,16 +259,16 @@ DbgHidInternalIoctlString(
 #define DBG_IOCTL 4
 
 #if DBG
-#define CrosKeyboardPrint(dbglevel, dbgcatagory, fmt, ...) {          \
-    if (CrosKeyboardDebugLevel >= dbglevel &&                         \
-        (CrosKeyboardDebugCatagories && dbgcatagory))                 \
+#define CrosKBHIDRemapperPrint(dbglevel, dbgcatagory, fmt, ...) {          \
+    if (CrosKBHIDRemapperDebugLevel >= dbglevel &&                         \
+        (CrosKBHIDRemapperDebugCatagories && dbgcatagory))                 \
 	    {                                                           \
         DbgPrint(DRIVERNAME);                                   \
         DbgPrint(fmt, __VA_ARGS__);                             \
 	    }                                                           \
 }
 #else
-#define CrosKeyboardPrint(dbglevel, fmt, ...) {                       \
+#define CrosKBHIDRemapperPrint(dbglevel, fmt, ...) {                       \
 }
 #endif
 

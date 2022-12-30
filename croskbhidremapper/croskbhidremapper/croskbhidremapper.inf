@@ -6,7 +6,7 @@
 ;    coolstar.inf
 ;
 ;Abstract:
-;    INF file for installing the CrosKeyboard MaxTouch Touch Screen Driver
+;    INF file for installing the CrosKBHIDRemapper MaxTouch Touch Screen Driver
 ;
 ;
 ;--*/
@@ -17,21 +17,17 @@ Class       = HIDClass
 ClassGuid   = {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
 Provider    = CoolStar
 DriverVer   = 06/21/2006,6.1.7779.2
-CatalogFile = croskeyboard3.cat
+CatalogFile = croskbhidremapper.cat
+PnpLockdown = 1
 
 [DestinationDirs]
 DefaultDestDir = 12
-
-; ================= Class section =====================
-
-[ClassInstall32]
-AddReg=CrosKeyboard_RegistryAdd
 
 [SourceDisksNames]
 1 = %DiskId1%,,,""
 
 [SourceDisksFiles]
-croskeyboard3.sys  = 1,,
+croskbhidremapper.sys  = 1,,
 
 ;*****************************************
 ; CrosTouchScreen  Install Section
@@ -43,38 +39,36 @@ croskeyboard3.sys  = 1,,
 ; Decorated model section take precedence over undecorated 
 ; ones on XP and later.
 [Standard.NT$ARCH$]
-%CrosKeyboard.DeviceDesc%=CrosKeyboard_Device, ACPI\GGL0303
+%CrosKBHIDRemapper.DeviceDesc%=CrosKBHIDRemapper_Device, CROSKB\HID0000
 
-[CrosKeyboard_Device.NT]
+[CrosKBHIDRemapper_Device.NT]
 CopyFiles=Drivers_Dir
 
-[CrosKeyboard_Device.NT.HW]
-AddReg=CrosKeyboard_AddReg
+[CrosKBHIDRemapper_Device.NT.HW]
+AddReg=CrosKBHIDRemapper_AddReg
 
 [Drivers_Dir]
-croskeyboard3.sys
+croskbhidremapper.sys
 
-[CrosKeyboard_AddReg]
-; Set to 1 to connect the first interrupt resource found, 0 to leave disconnected
-HKR,Settings,"ConnectInterrupt",0x00010001,0
+[CrosKBHIDRemapper_AddReg]
 HKR,,"UpperFilters",0x00010000,"mshidkmdf"
 
 ;-------------- Service installation
-[CrosKeyboard_Device.NT.Services]
-AddService = CrosKeyboard,%SPSVCINST_ASSOCSERVICE%, CrosKeyboard_Service_Inst
+[CrosKBHIDRemapper_Device.NT.Services]
+AddService = CrosKBHIDRemapper,%SPSVCINST_ASSOCSERVICE%, CrosKBHIDRemapper_Service_Inst
 
 ; -------------- CrosTouchScreen driver install sections
-[CrosKeyboard_Service_Inst]
-DisplayName    = %CrosKeyboard.SVCDESC%
+[CrosKBHIDRemapper_Service_Inst]
+DisplayName    = %CrosKBHIDRemapper.SVCDESC%
 ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
 StartType      = 3               ; SERVICE_DEMAND_START 
 ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
-ServiceBinary  = %12%\croskeyboard3.sys
+ServiceBinary  = %12%\croskbhidremapper.sys
 LoadOrderGroup = Base
 
 [Strings]
 SPSVCINST_ASSOCSERVICE= 0x00000002
 StdMfg                 = "CoolStar"
-DiskId1                = "CrosKeyboard Installation Disk #1"
-CrosKeyboard.DeviceDesc = "Chromebook Keyboard"
-CrosKeyboard.SVCDESC    = "CrosKeyboard Service"
+DiskId1                = "CrosKBHIDRemapper Installation Disk #1"
+CrosKBHIDRemapper.DeviceDesc = "Chromebook Keyboard HID Helper"
+CrosKBHIDRemapper.SVCDESC    = "CrosKBHIDRemapper Service"
