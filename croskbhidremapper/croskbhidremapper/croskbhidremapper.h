@@ -96,16 +96,14 @@ HID_REPORT_DESCRIPTOR DefaultReportDescriptor[] = {
 	0x15, 0x00, /*		Logical Minimum (0)					*/
 	0x25, 0x01, /*		Logical Maximum (1)					*/
 	0x75, 0x01, /*		Report Size (1)						*/
-	0x95, 0x07, /*		Report Count (7)					*/
+	0x95, 0x05, /*		Report Count (5)					*/
 	0x09, 0x6F, /*		Usage (Brightess Up)				*/
 	0x09, 0x70, /*		Usage (Brightness Down)				*/
-	0x09, 0xB7, /*		Usage (Stop)						*/
-	0x09, 0xCD, /*		Usage (Play / Pause)				*/
-	0x09, 0xE2, /*		Usage (Mute)						*/
-	0x09, 0xE9, /*		Usage (Volume Up)					*/
-	0x09, 0xEA, /*		Usage (Volume Down)					*/
+	0x09, 0x79, /*		Usage (Keyboard Brightness Up)		*/
+	0x09, 0x7A, /*		Usage (Keyboard Brightness Down)	*/
+	0x09, 0xEC, /*		Usage (Keyboard Backlight Toggle)	*/
 	0x81, 0x02, /*		Input (Data, Variable, Absolute)	*/
-	0x95, 0x01, /*		Report Count (1)					*/
+	0x95, 0x03, /*		Report Count (3)					*/
 	0x81, 0x01, /*		Input (Constant)					*/
 	0xC0,        /*        End Collection                        */
 
@@ -121,20 +119,6 @@ HID_REPORT_DESCRIPTOR DefaultReportDescriptor[] = {
 	0x91, 0x02,                          //   OUTPUT (Data,Var,Abs)
 	0x09, 0x03,                          //   USAGE (Vendor Usage 2)
 	0x91, 0x02,                          //   OUTPUT (Data,Var,Abs)
-	0xc0,                                // END_COLLECTION
-
-	0x06, 0x00, 0xff,                    // USAGE_PAGE (Vendor Defined Page 1)
-	0x09, 0x04,                          // USAGE (Vendor Usage 4)
-	0xa1, 0x01,                          // COLLECTION (Application)
-	0x85, REPORTID_SPECKEYS,             //   REPORT_ID (Special Keys)
-	0x15, 0x00,                          //   LOGICAL_MINIMUM (0)
-	0x26, 0xff, 0x00,                    //   LOGICAL_MAXIMUM (256)
-	0x75, 0x08,                          //   REPORT_SIZE  (8)   - bits
-	0x95, 0x01,                          //   REPORT_COUNT (1)  - Bytes
-	0x09, 0x02,                          //   USAGE (Vendor Usage 1)
-	0x81, 0x02,                          //   INPUT (Data,Var,Abs)
-	0x95, 0x01,                          //   REPORT_COUNT (1)  - Bytes
-	0x81, 0x01,                          //   INPUT (Constant)
 	0xc0,                                // END_COLLECTION
 };
 
@@ -159,12 +143,43 @@ CONST HID_DESCRIPTOR DefaultHidDescriptor = {
 #define true 1
 #define false 0
 
+typedef NTSTATUS
+(*PPROCESS_HID_REPORT)(
+	IN PVOID Context,
+	IN PVOID ReportBuffer,
+	IN ULONG ReportBufferLen,
+	OUT size_t* BytesWritten
+	);
+
+typedef BOOLEAN
+(*PREGISTER_CALLBACK)(
+	IN PVOID Context,
+	IN PVOID HIDContext,
+	IN PPROCESS_HID_REPORT HidReportProcessCallback
+	);
+
+typedef BOOLEAN
+(*PUNREGISTER_CALLBACK)(
+	IN PVOID Context
+	);
+
+DEFINE_GUID(GUID_CROSKBHID_INTERFACE_STANDARD,
+	0x74a15a7c, 0x82b5, 0x11ed, 0x8c, 0xd5, 0x00, 0x15, 0x5d, 0xa4, 0x4e, 0x91);
+
+typedef struct _CROSKBHID_INTERFACE_STANDARD {
+	INTERFACE InterfaceHeader;
+	PREGISTER_CALLBACK     RegisterCallback;
+	PUNREGISTER_CALLBACK   UnregisterCallback;
+} CROSKBHID_INTERFACE_STANDARD, * PCROSKBHID_INTERFACE_STANDARD;
+
 typedef struct _CROSKBHIDREMAPPER_CONTEXT
 {
 
 	WDFQUEUE ReportQueue;
 
 	BYTE DeviceMode;
+
+	CROSKBHID_INTERFACE_STANDARD CrosKBHidInterface;
 
 } CROSKBHIDREMAPPER_CONTEXT, *PCROSKBHIDREMAPPER_CONTEXT;
 

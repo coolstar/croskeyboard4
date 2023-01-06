@@ -70,10 +70,19 @@ OnPrepareHardware(
 	--*/
 {
 	PCROSKBHIDREMAPPER_CONTEXT pDevice = GetDeviceContext(FxDevice);
-	BOOLEAN fSpbResourceFound = FALSE;
 	NTSTATUS status = STATUS_SUCCESS;
 
 	UNREFERENCED_PARAMETER(FxResourcesRaw);
+	UNREFERENCED_PARAMETER(FxResourcesTranslated);
+
+	CROSKBHID_INTERFACE_STANDARD CrosKBHIDInterface;
+	status = WdfFdoQueryForInterface(FxDevice, &GUID_CROSKBHID_INTERFACE_STANDARD,
+		(PINTERFACE)&CrosKBHIDInterface, sizeof(CrosKBHIDInterface), 1, NULL);
+	if (!NT_SUCCESS(status)) {
+		return status;
+	}
+
+	memcpy(&pDevice->CrosKBHidInterface, &CrosKBHIDInterface, sizeof(CrosKBHIDInterface));
 
 	return status;
 }
@@ -134,7 +143,17 @@ OnD0Entry(
 	PCROSKBHIDREMAPPER_CONTEXT pDevice = GetDeviceContext(FxDevice);
 	NTSTATUS status = STATUS_SUCCESS;
 
-	return status;
+	if (!pDevice->CrosKBHidInterface.RegisterCallback) {
+		return STATUS_NOINTERFACE;
+	}
+
+	BOOLEAN success = (*pDevice->CrosKBHidInterface.RegisterCallback)(
+		pDevice->CrosKBHidInterface.InterfaceHeader.Context,
+		pDevice,
+		(PPROCESS_HID_REPORT)&CrosKBHIDRemapperProcessVendorReport
+		);
+
+	return success ? STATUS_SUCCESS : STATUS_INVALID_DEVICE_REQUEST;
 }
 
 NTSTATUS
@@ -163,7 +182,13 @@ OnD0Exit(
 
 	PCROSKBHIDREMAPPER_CONTEXT pDevice = GetDeviceContext(FxDevice);
 
-	return STATUS_SUCCESS;
+	if (!pDevice->CrosKBHidInterface.UnregisterCallback) {
+		return STATUS_NOINTERFACE;
+	}
+
+	BOOLEAN success = (*pDevice->CrosKBHidInterface.UnregisterCallback)(pDevice->CrosKBHidInterface.InterfaceHeader.Context);
+
+	return success ? STATUS_SUCCESS : STATUS_INVALID_DEVICE_REQUEST;
 }
 
 NTSTATUS
@@ -250,6 +275,14 @@ CrosKBHIDRemapperEvtDeviceAdd(
 			"WdfDeviceCreate failed with status code 0x%x\n", status);
 
 		return status;
+	}
+
+	{
+		WDF_DEVICE_STATE deviceState;
+		WDF_DEVICE_STATE_INIT(&deviceState);
+
+		deviceState.NotDisableable = WdfFalse;
+		WdfDeviceSetDeviceState(device, &deviceState);
 	}
 
 	WDF_IO_QUEUE_CONFIG_INIT_DEFAULT_QUEUE(&queueConfig, WdfIoQueueDispatchParallel);

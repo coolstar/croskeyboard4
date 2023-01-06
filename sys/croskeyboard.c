@@ -1081,6 +1081,55 @@ void garbageCollect(PDEVICE_EXTENSION devExt) {
     }
 }
 
+UINT8 MapHIDKeys(KEYBOARD_INPUT_DATA report[MAX_CURRENT_KEYS], int* reportSize) {
+    UINT8 flag = 0;
+    for (int i = 0; i < *reportSize; i++) {
+        if ((report[i].Flags & KEY_TYPES) == KEY_E0) {
+            switch (report->MakeCode) {
+            case VIVALDI_BRIGHTNESSDN:
+                if (!(report[i].Flags & KEY_BREAK))
+                    flag |= CROSKBHID_BRIGHTNESS_DN;
+                break;
+            case VIVALDI_BRIGHTNESSUP:
+                if (!(report[i].Flags & KEY_BREAK))
+                    flag |= CROSKBHID_BRIGHTNESS_UP;
+                break;
+            case VIVALDI_KBD_BKLIGHT_DOWN:
+                if (!(report[i].Flags & KEY_BREAK))
+                    flag |= CROSKBHID_KBLT_DN;
+                break;
+            case VIVALDI_KBD_BKLIGHT_UP:
+                if (!(report[i].Flags & KEY_BREAK))
+                    flag |= CROSKBHID_KBLT_UP;
+                break;
+            case VIVALDI_KBD_BKLIGHT_TOGGLE:
+                if (!(report[i].Flags & KEY_BREAK))
+                    flag |= CROSKBHID_KBLT_TOGGLE;
+                break;
+            default:
+                continue;
+            }
+            report[i].MakeCode = 0;
+            report[i].Flags = 0;
+        }
+    }
+
+    //GC the new Report
+    KEYBOARD_INPUT_DATA newReport[MAX_CURRENT_KEYS];
+    int newSize = 0;
+    for (int i = 0; i < *reportSize; i++) {
+        if (report[i].Flags != 0 || report[i].MakeCode != 0) {
+            newReport[newSize] = report[i];
+            newSize++;
+        }
+    }
+
+    RtlCopyMemory(report, newReport, sizeof(newReport[0]) * newSize);
+    *reportSize = newSize;
+
+    return flag;
+}
+
 BOOLEAN checkKey(KEYBOARD_INPUT_DATA key, KeyStruct report[MAX_CURRENT_KEYS]) {
     for (int i = 0; i < MAX_CURRENT_KEYS; i++) {
         if (report[i].MakeCode == key.MakeCode &&
@@ -1316,6 +1365,28 @@ void RemapLegacy(PDEVICE_EXTENSION devExt, KEYBOARD_INPUT_DATA data[MAX_CURRENT_
                 if (addRemap(devExt, remappedStruct)) {
                     data[i].MakeCode = 0x1F;
                     data[i].Flags &= ~KEY_TYPES;
+                }
+            }
+            else if (data[i].MakeCode == VIVALDI_BRIGHTNESSDN && devExt->LeftAltPressed) {
+                RemappedKeyStruct remappedStruct = { 0 }; //register remap (Ctrl + Alt + Brightness => Ctrl + Alt + KB Brightness)
+                remappedStruct.origKey.MakeCode = data[i].MakeCode;
+                remappedStruct.origKey.Flags = data[i].Flags;
+                remappedStruct.remappedKey.MakeCode = VIVALDI_KBD_BKLIGHT_DOWN;
+                remappedStruct.remappedKey.Flags = data[i].Flags;
+
+                if (addRemap(devExt, remappedStruct)) {
+                    data[i].MakeCode = VIVALDI_KBD_BKLIGHT_DOWN;
+                }
+            }
+            else if (data[i].MakeCode == VIVALDI_BRIGHTNESSUP && devExt->LeftAltPressed) {
+                RemappedKeyStruct remappedStruct = { 0 }; //register remap (Ctrl + Alt + Brightness => Ctrl + Alt + KB Brightness)
+                remappedStruct.origKey.MakeCode = data[i].MakeCode;
+                remappedStruct.origKey.Flags = data[i].Flags;
+                remappedStruct.remappedKey.MakeCode = VIVALDI_KBD_BKLIGHT_UP;
+                remappedStruct.remappedKey.Flags = data[i].Flags;
+
+                if (addRemap(devExt, remappedStruct)) {
+                    data[i].MakeCode = VIVALDI_KBD_BKLIGHT_UP;
                 }
             }
             else if (data[i].MakeCode == K_LEFT &&
@@ -1600,6 +1671,17 @@ Return Value:
             (newReport[i].Flags & KEY_TYPES) == KEY_E0) {
             newReport[i].MakeCode = 0x22; //Windows native Play / Pause Code
         }
+    }
+
+    UINT8 HIDFlag = MapHIDKeys(newReport, &reportSize);
+    DbgPrint("HID Flag: 0x%x\n", HIDFlag);
+    if (devExt->HidReportProcessCallback) {
+        DbgPrint("Calling HID Report Callback\n");
+        CrosKBHIDRemapperMediaReport mediaReport = { 0 };
+        mediaReport.ReportID = REPORTID_MEDIA;
+        mediaReport.ControlCode = HIDFlag;
+        size_t bytesWritten;
+        (*devExt->HidReportProcessCallback)(devExt->HIDContext, &mediaReport, sizeof(mediaReport), &bytesWritten);
     }
 
     DbgPrint("HID -> PS/2 report size: %d. PS/2 report size: %d\n", reportSize, (ULONG)(InputDataEnd - InputDataStart));

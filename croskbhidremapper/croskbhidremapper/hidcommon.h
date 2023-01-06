@@ -17,7 +17,6 @@
 #define REPORTID_KEYBOARD       0x07
 #define REPORTID_MEDIA          0x08
 #define REPORTID_SETTINGS		0x09
-#define REPORTID_SPECKEYS		0x0A
 
 //
 // Keyboard specific report infomation
@@ -67,18 +66,6 @@ typedef struct _CROSKBHIDREMAPPER_MEDIA_REPORT
 } CrosKBHIDRemapperMediaReport;
 
 #pragma pack()
-
-#pragma pack(1)
-typedef struct _CROSKBHIDREMAPPER_SPECKEY_REPORT
-{
-
-	BYTE      ReportID;
-
-	BYTE	  ControlCode;
-
-	BYTE	  Reserved;
-
-} CrosKBHIDRemapperSpecialKeyReport;
 
 #pragma pack()
 

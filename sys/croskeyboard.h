@@ -57,6 +57,28 @@ Environment:
 
 #define MIN(_A_,_B_) (((_A_) < (_B_)) ? (_A_) : (_B_))
 
+#define REPORTID_MEDIA          0x08
+
+#define CROSKBHID_BRIGHTNESS_UP 0x01
+#define CROSKBHID_BRIGHTNESS_DN 0x02
+#define CROSKBHID_KBLT_UP       0x04
+#define CROSKBHID_KBLT_DN       0x08
+#define CROSKBHID_KBLT_TOGGLE   0x10
+
+#pragma pack(1)
+typedef struct _CROSKBHIDREMAPPER_MEDIA_REPORT
+{
+
+    BYTE      ReportID;
+
+    BYTE	  ControlCode;
+
+    BYTE	  Reserved;
+
+} CrosKBHIDRemapperMediaReport;
+
+#pragma pack()
+
 typedef struct KeySetting {
     USHORT MakeCode;
     USHORT Flags;
