@@ -197,10 +197,6 @@ VOID CsVivaldiCallbackFunction(
         for (int i = 0; i < pDevice->functionRowCount; i++) {
             pDevice->functionRowKeys[i] = localArg.args.settings.functionRowKeys[i];
         }
-        DbgPrint("Loaded vivaldi settings with %d keys\n", pDevice->functionRowCount);
-        for (int i = 0; i < pDevice->functionRowCount; i++) {
-            DbgPrint("Key %d: 0x%x %d\n", i, pDevice->functionRowKeys[i].MakeCode, pDevice->functionRowKeys[i].Flags);
-        }
     }
 }
 
@@ -1674,34 +1670,12 @@ Return Value:
     }
 
     UINT8 HIDFlag = MapHIDKeys(newReport, &reportSize);
-    DbgPrint("HID Flag: 0x%x\n", HIDFlag);
     if (devExt->HidReportProcessCallback) {
-        DbgPrint("Calling HID Report Callback\n");
         CrosKBHIDRemapperMediaReport mediaReport = { 0 };
         mediaReport.ReportID = REPORTID_MEDIA;
         mediaReport.ControlCode = HIDFlag;
         size_t bytesWritten;
         (*devExt->HidReportProcessCallback)(devExt->HIDContext, &mediaReport, sizeof(mediaReport), &bytesWritten);
-    }
-
-    DbgPrint("HID -> PS/2 report size: %d. PS/2 report size: %d\n", reportSize, (ULONG)(InputDataEnd - InputDataStart));
-
-    qsort(newReport, reportSize, sizeof(*newReport), CompareKeys);
-    qsort(InputDataStart, InputDataEnd - InputDataStart, sizeof(*InputDataStart), CompareKeys);
-
-    for (int i = 0; i < min(reportSize, InputDataEnd - InputDataStart); i++) {
-        if (newReport[i].Flags != InputDataStart[i].Flags ||
-            newReport[i].MakeCode != InputDataStart[i].MakeCode) {
-            DbgPrint("\tExpected code 0x%x [flag %d]; Got code 0x%x [flag %d]\n", InputDataStart[i].MakeCode, InputDataStart[i].Flags, newReport[i].MakeCode, newReport[i].Flags);
-        }
-    }
-
-    for (int i = 0; i < reportSize; i++) {
-        BOOLEAN test = (newReport[i].MakeCode != newReport[i + 1].MakeCode ||
-            (newReport[i].Flags & (KEY_E0 | KEY_E1)) != (newReport[i + 1].Flags & (KEY_E0 | KEY_E1)));
-        if (!test) {
-            DbgPrint("Found duplicate!!!. Flags? %d vs %d\n", newReport[i].Flags, newReport[i + 1].Flags);
-        }
     }
 
     ULONG DataConsumed;
