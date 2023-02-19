@@ -2015,13 +2015,33 @@ Return Value:
             }
         }
         if ((pData->Flags & KEY_TYPES) == KEY_E0) {
-            if (pData->MakeCode == K_LWIN) { //Search Key
+            switch (pData->MakeCode)
+            {
+            case K_LWIN: //Search Key
                 if ((pData->Flags & KEY_BREAK) == 0) {
                     devExt->SearchPressed = TRUE;
                 }
                 else {
                     devExt->SearchPressed = FALSE;
                 }
+                break;
+            case K_RCTRL: //R CTRL
+                if ((pData->Flags & KEY_BREAK) == 0) {
+                    devExt->RightCtrlPressed = TRUE;
+                }
+                else {
+                    devExt->RightCtrlPressed = FALSE;
+                }
+                break;
+            case K_RALT: //R Alt
+                if ((pData->Flags & KEY_BREAK) == 0) {
+                    devExt->RightAltPressed = TRUE;
+                }
+                else {
+                    devExt->RightAltPressed = FALSE;
+                }
+                break;
+
             }
         }
     }
