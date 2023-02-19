@@ -1777,6 +1777,16 @@ Return Value:
     if (reportSize == 0 && (devExt->lastKeyPressed.MakeCode != 0 || devExt->lastKeyPressed.Flags != 0)) {
         newReport[reportSize].MakeCode = devExt->lastKeyPressed.MakeCode;
         newReport[reportSize].Flags = devExt->lastKeyPressed.Flags;
+
+        for (int i = 0; i < MAX_CURRENT_KEYS; i++) {
+            if (devExt->remappedKeys[i].origKey.MakeCode == devExt->lastKeyPressed.MakeCode &&
+                devExt->remappedKeys[i].origKey.Flags == (devExt->lastKeyPressed.Flags & KEY_TYPES)) {
+                newReport[reportSize].MakeCode = devExt->remappedKeys[i].remappedKey.MakeCode;
+                newReport[reportSize].Flags = devExt->remappedKeys[i].remappedKey.Flags | (newReport[reportSize].Flags & ~KEY_TYPES);
+                break;
+            }
+        }
+
         reportSize++;
     }
 
