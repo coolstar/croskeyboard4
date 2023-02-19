@@ -127,6 +127,7 @@ const UINT8 fnKeys_set1[] = {
 
 #define K_BACKSP    0xE
 #define K_DELETE    0x53
+#define K_LOCK      0x5D
 
 #define K_UP        0x48
 #define K_DOWN      0x50
@@ -213,7 +214,7 @@ VOID CsVivaldiCallbackFunction(
 #include <stddef.h>
 
 void LoadSettings(PDEVICE_EXTENSION filterExt) {
-    size_t cfgSize = offsetof(RemapCfgs, cfg) + sizeof(RemapCfg) * 38;
+    size_t cfgSize = offsetof(RemapCfgs, cfg) + sizeof(RemapCfg) * 39;
     PRemapCfgs remapCfgs = (PRemapCfgs)ExAllocatePoolWithTag(NonPagedPool, cfgSize, KBFILTER_POOL_TAG);
     if (!remapCfgs) {
         return;
@@ -222,7 +223,7 @@ void LoadSettings(PDEVICE_EXTENSION filterExt) {
 
     remapCfgs->magic = REMAP_CFG_MAGIC;
     remapCfgs->FlipSearchAndAssistantOnPixelbook = FALSE;
-    remapCfgs->remappings = 38;
+    remapCfgs->remappings = 39;
 
     //Begin map vivalid keys (without Ctrl) to F# keys
 
@@ -273,7 +274,7 @@ void LoadSettings(PDEVICE_EXTENSION filterExt) {
 
     remapCfgs->cfg[9].LeftCtrl = RemapCfgKeyStateEnforceNot;
     remapCfgs->cfg[9].originalKey.MakeCode = VIVALDI_KBD_BKLIGHT_DOWN;
-    remapCfgs->cfg[9].originalKey.MakeCode = KEY_E0;
+    remapCfgs->cfg[9].originalKey.Flags = KEY_E0;
     remapCfgs->cfg[9].remapVivaldiToFnKeys = TRUE;
 
     remapCfgs->cfg[10].LeftCtrl = RemapCfgKeyStateEnforceNot;
@@ -520,6 +521,20 @@ void LoadSettings(PDEVICE_EXTENSION filterExt) {
     remapCfgs->cfg[37].remappedKey.Flags = KEY_E0;
     remapCfgs->cfg[37].additionalKeys[0].MakeCode = K_LCTRL;
     remapCfgs->cfg[37].additionalKeys[0].Flags = KEY_BREAK;
+
+    //Lock -> Windows + L
+
+    remapCfgs->cfg[38].Search = RemapCfgKeyStateEnforceNot;
+    remapCfgs->cfg[38].originalKey.MakeCode = K_LOCK;
+    remapCfgs->cfg[38].originalKey.Flags = 0;
+    remapCfgs->cfg[38].remappedKey.MakeCode = 0x26;
+    remapCfgs->cfg[38].additionalKeys[0].MakeCode = K_LWIN;
+    remapCfgs->cfg[38].additionalKeys[0].Flags = KEY_BREAK;
+
+    remapCfgs->cfg[39].Search = RemapCfgKeyStateEnforce;
+    remapCfgs->cfg[39].originalKey.MakeCode = K_DOWN;
+    remapCfgs->cfg[39].originalKey.Flags = 0;
+    remapCfgs->cfg[39].remappedKey.MakeCode = 0x26;
 
     filterExt->remapCfgs = remapCfgs;
 }
