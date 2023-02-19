@@ -243,7 +243,7 @@ void LoadSettings(PDEVICE_EXTENSION filterExt) {
 
     remapCfgs->cfg[3].LeftCtrl = RemapCfgKeyStateEnforceNot;
     remapCfgs->cfg[3].originalKey.MakeCode = VIVALDI_FULLSCREEN;
-    remapCfgs->cfg[3].originalKey.MakeCode = KEY_E0;
+    remapCfgs->cfg[3].originalKey.Flags = KEY_E0;
     remapCfgs->cfg[3].remapVivaldiToFnKeys = TRUE;
 
     remapCfgs->cfg[4].LeftCtrl = RemapCfgKeyStateEnforceNot;
@@ -258,7 +258,7 @@ void LoadSettings(PDEVICE_EXTENSION filterExt) {
 
     remapCfgs->cfg[6].LeftCtrl = RemapCfgKeyStateEnforceNot;
     remapCfgs->cfg[6].originalKey.MakeCode = VIVALDI_BRIGHTNESSDN;
-    remapCfgs->cfg[6].originalKey.MakeCode = KEY_E0;
+    remapCfgs->cfg[6].originalKey.Flags = KEY_E0;
     remapCfgs->cfg[6].remapVivaldiToFnKeys = TRUE;
 
     remapCfgs->cfg[7].LeftCtrl = RemapCfgKeyStateEnforceNot;
