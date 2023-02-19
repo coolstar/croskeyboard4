@@ -476,7 +476,7 @@ void LoadSettings(PDEVICE_EXTENSION filterExt) {
 
     remapCfgs->cfg[33].LeftCtrl = RemapCfgKeyStateEnforce;
     remapCfgs->cfg[33].LeftAlt = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[33].originalKey.MakeCode = VIVALDI_BRIGHTNESSDN;
+    remapCfgs->cfg[33].originalKey.MakeCode = VIVALDI_BRIGHTNESSUP;
     remapCfgs->cfg[33].originalKey.Flags = KEY_E0;
     remapCfgs->cfg[33].remappedKey.MakeCode = VIVALDI_KBD_BKLIGHT_UP;
     remapCfgs->cfg[33].remappedKey.Flags = KEY_E0;
