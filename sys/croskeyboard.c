@@ -578,6 +578,11 @@ OnReleaseHardware(
 
     filterExt = FilterGetData(FxDevice);
 
+    if (filterExt->remapCfgs) {
+        ExFreePoolWithTag(filterExt->remapCfgs, KBFILTER_POOL_TAG);
+        filterExt->remapCfgs = NULL;
+    }
+
     if (filterExt->CSSettingsCallbackObj) {
         ExUnregisterCallback(filterExt->CSSettingsCallbackObj);
         filterExt->CSSettingsCallbackObj = NULL;
