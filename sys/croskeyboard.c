@@ -1618,7 +1618,7 @@ void RemapLoaded(PDEVICE_EXTENSION devExt, KEYBOARD_INPUT_DATA data[MAX_CURRENT_
                         if ((addData.Flags & KEY_BREAK) == 0) {
                             removeData.Flags |= KEY_BREAK;
                         }
-                        addKey(addData, dataAfter);
+                        addKey(removeData, dataAfter);
                     }
                 }
 
