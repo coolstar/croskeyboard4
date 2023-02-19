@@ -132,6 +132,42 @@ typedef struct _CROSKBHID_INTERFACE_STANDARD {
 #define INTFLAG_NEW 0x1
 #define INTFLAG_REMOVED 0x2
 
+#include <pshpack1.h>
+
+typedef struct RemapCfgKey {
+    USHORT MakeCode;
+    USHORT Flags;
+} RemapCfgKey, * PRemapCfgKey;
+
+typedef enum RemapCfgKeyState {
+    RemapCfgKeyStateNoDetect,
+    RemapCfgKeyStateEnforce,
+    RemapCfgKeyStateEnforceNot
+} RemapCfgKeyState, *PRemapCfgKeyState;
+
+typedef struct RemapCfg {
+    RemapCfgKeyState LeftCtrl;
+    RemapCfgKeyState LeftAlt;
+    RemapCfgKeyState Search;
+    RemapCfgKeyState Assistant;
+    RemapCfgKeyState LeftShift;
+    RemapCfgKeyState RightCtrl;
+    RemapCfgKeyState RightAlt;
+    RemapCfgKeyState RightShift;
+    RemapCfgKey originalKey;
+    BOOLEAN remapVivaldiToFnKeys;
+    RemapCfgKey remappedKey;
+    RemapCfgKey additionalKeys[8];
+} RemapCfg, * PRemapCfg;
+
+typedef struct RemapCfgs {
+    UINT32 magic;
+    UINT32 remappings;
+    BOOLEAN FlipSearchAndAssistantOnPixelbook;
+    RemapCfg cfg[1];
+} RemapCfgs, * PRemapCfgs;
+#include <poppack.h>
+
 typedef struct KeyStruct {
     USHORT MakeCode;
     USHORT Flags;
@@ -197,10 +233,16 @@ typedef struct _DEVICE_EXTENSION
     UINT8 functionRowCount;
     KeySetting functionRowKeys[16];
 
+    PRemapCfgs remapCfgs;
+
     BOOLEAN LeftCtrlPressed;
     BOOLEAN LeftAltPressed;
     BOOLEAN LeftShiftPressed;
     BOOLEAN SearchPressed;
+
+    BOOLEAN RightCtrlPressed;
+    BOOLEAN RightAltPressed;
+    BOOLEAN RightShiftPressed;
 
     KeyStruct currentKeys[MAX_CURRENT_KEYS];
     KeyStruct lastKeyPressed;
