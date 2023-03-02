@@ -232,6 +232,7 @@ typedef struct _DEVICE_EXTENSION
     KEYBOARD_ATTRIBUTES KeyboardAttributes;
 
     BOOLEAN tabletMode;
+    BOOLEAN hasAssistantKey;
 
     UINT8 legacyTopRowKeys[10];
     UINT8 legacyVivaldi[10];
@@ -244,6 +245,7 @@ typedef struct _DEVICE_EXTENSION
     BOOLEAN LeftCtrlPressed;
     BOOLEAN LeftAltPressed;
     BOOLEAN LeftShiftPressed;
+    BOOLEAN AssistantPressed;
     BOOLEAN SearchPressed;
 
     BOOLEAN RightCtrlPressed;

@@ -122,6 +122,7 @@ const UINT8 fnKeys_set1[] = {
 #define K_LCTRL     0x1D
 #define K_LALT      0x38
 #define K_LSHFT     0x2A
+#define K_ASSISTANT 0x58
 #define K_LWIN      0x5B
 
 #define K_RCTRL     0x1D
@@ -217,6 +218,54 @@ VOID CsVivaldiCallbackFunction(
     }
 }
 
+#define MAX_DEVICE_REG_VAL_LENGTH 0x100
+NTSTATUS GetSmbiosName(WCHAR systemProductName[MAX_DEVICE_REG_VAL_LENGTH]) {
+    NTSTATUS status = STATUS_UNSUCCESSFUL;
+    HANDLE parentKey = NULL;
+    UNICODE_STRING ParentKeyName;
+    OBJECT_ATTRIBUTES  ObjectAttributes;
+    RtlInitUnicodeString(&ParentKeyName, L"\\Registry\\Machine\\Hardware\\DESCRIPTION\\System\\BIOS");
+
+    InitializeObjectAttributes(&ObjectAttributes,
+        &ParentKeyName,
+        OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE,
+        NULL,    // handle
+        NULL);
+
+    status = ZwOpenKey(&parentKey, KEY_READ, &ObjectAttributes);
+    if (!NT_SUCCESS(status)) {
+        return status;
+    }
+
+    ULONG ResultLength;
+    PKEY_VALUE_PARTIAL_INFORMATION KeyValueInfo = (PKEY_VALUE_PARTIAL_INFORMATION)ExAllocatePoolZero(NonPagedPool, sizeof(KEY_VALUE_PARTIAL_INFORMATION) + MAX_DEVICE_REG_VAL_LENGTH, KBFILTER_POOL_TAG);
+    if (!KeyValueInfo) {
+        status = STATUS_NO_MEMORY;
+        goto exit;
+    }
+
+    UNICODE_STRING SystemProductNameValue;
+    RtlInitUnicodeString(&SystemProductNameValue, L"SystemProductName");
+    status = ZwQueryValueKey(parentKey, &SystemProductNameValue, KeyValuePartialInformation, KeyValueInfo, sizeof(KEY_VALUE_PARTIAL_INFORMATION) + MAX_DEVICE_REG_VAL_LENGTH, &ResultLength);
+    if (!NT_SUCCESS(status)) {
+        goto exit;
+    }
+
+    if (KeyValueInfo->DataLength > MAX_DEVICE_REG_VAL_LENGTH) {
+        status = STATUS_BUFFER_OVERFLOW;
+        goto exit;
+    }
+
+    RtlZeroMemory(systemProductName, sizeof(systemProductName));
+    RtlCopyMemory(systemProductName, &KeyValueInfo->Data, KeyValueInfo->DataLength);
+
+exit:
+    if (KeyValueInfo) {
+        ExFreePoolWithTag(KeyValueInfo, KBFILTER_POOL_TAG);
+    }
+    return status;
+}
+
 #include <stddef.h>
 
 void LoadSettings(PDEVICE_EXTENSION filterExt) {
@@ -228,7 +277,7 @@ void LoadSettings(PDEVICE_EXTENSION filterExt) {
     RtlZeroMemory(remapCfgs, cfgSize);
 
     remapCfgs->magic = REMAP_CFG_MAGIC;
-    remapCfgs->FlipSearchAndAssistantOnPixelbook = FALSE;
+    remapCfgs->FlipSearchAndAssistantOnPixelbook = TRUE;
     remapCfgs->remappings = 40;
 
     //Begin map vivalid keys (without Ctrl) to F# keys
@@ -555,6 +604,26 @@ OnSelfManagedIoInit(
 
     NTSTATUS status = STATUS_SUCCESS;
 
+    WCHAR SmbiosName[MAX_DEVICE_REG_VAL_LENGTH] = { 0 };
+    status = GetSmbiosName(SmbiosName);
+    if (!NT_SUCCESS(status)) {
+        DebugPrint(("GetSmbiosName failed 0x%x\n", status));
+        return status;
+    }
+
+    if (wcscmp(SmbiosName, L"Eve") == 0 || (wcscmp(SmbiosName, L"Atlas") == 0)) {
+        RtlCopyMemory(&filterExt->legacyVivaldi, &legacyVivaldiPixelbook, sizeof(filterExt->legacyVivaldi));
+        filterExt->hasAssistantKey = TRUE;
+    }
+    else if (wcscmp(SmbiosName, L"Arcada") == 0 || (wcscmp(SmbiosName, L"Sarien") == 0) || (wcscmp(SmbiosName, L"Drallion") == 0)) {
+        filterExt->hasAssistantKey = TRUE;
+    }
+
+    for (int i = 0; i < sizeof(filterExt->legacyVivaldi); i++) {
+        filterExt->functionRowKeys[i].MakeCode = filterExt->legacyVivaldi[i];
+        filterExt->functionRowKeys[i].Flags |= KEY_E0;
+    }
+
     // CS Keyboard Callback
 
     UNICODE_STRING CSKeyboardSettingsCallbackAPI;
@@ -757,6 +826,7 @@ Return Value:
 
     RtlCopyMemory(&filterExt->legacyTopRowKeys, &fnKeys_set1, sizeof(filterExt->legacyTopRowKeys));
     RtlCopyMemory(&filterExt->legacyVivaldi, &legacyVivaldi, sizeof(filterExt->legacyVivaldi));
+    filterExt->hasAssistantKey = FALSE;
 
     filterExt->functionRowCount = sizeof(filterExt->legacyVivaldi);
     for (int i = 0; i < sizeof(filterExt->legacyVivaldi); i++) {
@@ -1551,6 +1621,8 @@ void RemapLoaded(PDEVICE_EXTENSION devExt, KEYBOARD_INPUT_DATA data[MAX_CURRENT_
                 continue;
             if (!validateBool(cfg.LeftShift, devExt->LeftShiftPressed))
                 continue;
+            if (!validateBool(cfg.Assistant, devExt->AssistantPressed))
+                continue;
             if (!validateBool(cfg.Search, devExt->SearchPressed))
                 continue;
             if (!validateBool(cfg.RightCtrl, devExt->RightCtrlPressed))
@@ -1656,6 +1728,15 @@ Return Value:
 
     PKEYBOARD_INPUT_DATA pData;
     for (pData = InputDataStart; pData != InputDataEnd; pData++) { //First loop -> Refresh Modifier Keys and Change Legacy Keys to vivaldi bindings
+        if (devExt->hasAssistantKey && devExt->remapCfgs != NULL && devExt->remapCfgs->FlipSearchAndAssistantOnPixelbook) {
+            if (pData->MakeCode == K_ASSISTANT && (pData->Flags & KEY_TYPES) == KEY_E0) {
+                pData->MakeCode = K_LWIN;
+            }
+            else if (pData->MakeCode == K_LWIN && (pData->Flags & KEY_TYPES) == KEY_E0) {
+                pData->MakeCode = K_ASSISTANT;
+            }
+        }
+
         if ((pData->Flags & KEY_TYPES) == 0) {
             switch (pData->MakeCode)
             {
@@ -1697,6 +1778,14 @@ Return Value:
         if ((pData->Flags & KEY_TYPES) == KEY_E0) {
             switch (pData->MakeCode)
             {
+            case K_ASSISTANT: //Assistant Key
+                if ((pData->Flags & KEY_BREAK) == 0) {
+                    devExt->AssistantPressed = TRUE;
+                }
+                else {
+                    devExt->AssistantPressed = FALSE;
+                }
+                break;
             case K_LWIN: //Search Key
                 if ((pData->Flags & KEY_BREAK) == 0) {
                     devExt->SearchPressed = TRUE;
