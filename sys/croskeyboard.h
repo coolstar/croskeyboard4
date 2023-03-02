@@ -86,7 +86,8 @@ typedef struct KeySetting {
 
 typedef enum {
     CSVivaldiRequestEndpointRegister,
-    CSVivaldiRequestLoadSettings
+    CSVivaldiRequestLoadSettings,
+    CSVivaldiRequestUpdateTabletMode = 0x102
 } CSVivaldiRequest;
 
 typedef struct CSVivaldiSettingsArg {
@@ -97,6 +98,9 @@ typedef struct CSVivaldiSettingsArg {
             UINT8 functionRowCount;
             KeySetting functionRowKeys[16];
         } settings;
+        struct {
+            UINT8 tabletmode;
+        } tabletmode;
     } args;
 } CSVivaldiSettingsArg, *PCSVivaldiSettingsArg;
 
@@ -226,6 +230,8 @@ typedef struct _DEVICE_EXTENSION
     // Cached Keyboard Attributes
     //
     KEYBOARD_ATTRIBUTES KeyboardAttributes;
+
+    BOOLEAN tabletMode;
 
     UINT8 legacyTopRowKeys[10];
     UINT8 legacyVivaldi[10];

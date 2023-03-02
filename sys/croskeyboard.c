@@ -212,6 +212,9 @@ VOID CsVivaldiCallbackFunction(
             pDevice->functionRowKeys[i] = localArg.args.settings.functionRowKeys[i];
         }
     }
+    else if (localArg.settingsRequest == CSVivaldiRequestUpdateTabletMode) {
+        pDevice->tabletMode = (localArg.args.tabletmode.tabletmode != 0);
+    }
 }
 
 #include <stddef.h>
@@ -1341,7 +1344,7 @@ void updateKey(PDEVICE_EXTENSION devExt, KeyStruct data) {
             }
         }
     }
-    else {
+    else if (!devExt->tabletMode) {
         for (int i = 0; i < MAX_CURRENT_KEYS; i++) {
             if (devExt->currentKeys[i].Flags == 0x00 && devExt->currentKeys[i].MakeCode == 0x00) {
                 devExt->currentKeys[i] = data;
