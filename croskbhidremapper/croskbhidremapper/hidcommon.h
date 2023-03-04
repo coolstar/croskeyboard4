@@ -89,6 +89,8 @@ typedef struct _CROSKBHIDREMAPPER_FEATURE_REPORT
 
 } CrosKBHIDRemapperFeatureReport;
 
+#define SETTINGS_REG_RELOADSETTINGS 0x01
+
 #pragma pack(1)
 typedef struct _CROSKBHIDREMAPPER_SETTINGS_REPORT
 {

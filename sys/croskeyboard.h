@@ -124,6 +124,11 @@ typedef BOOLEAN
     IN PVOID Context
 );
 
+typedef void
+(*PRELOAD_SETTINGS)(
+    IN PVOID Context
+);
+
 DEFINE_GUID(GUID_CROSKBHID_INTERFACE_STANDARD,
     0x74a15a7c, 0x82b5, 0x11ed, 0x8c, 0xd5, 0x00, 0x15, 0x5d, 0xa4, 0x4e, 0x91);
 
@@ -131,6 +136,7 @@ typedef struct _CROSKBHID_INTERFACE_STANDARD {
     INTERFACE InterfaceHeader;
     PREGISTER_CALLBACK     RegisterCallback;
     PUNREGISTER_CALLBACK   UnregisterCallback;
+    PRELOAD_SETTINGS       ReloadSettings;
 } CROSKBHID_INTERFACE_STANDARD, *PCROSKBHID_INTERFACE_STANDARD;
 
 #define INTFLAG_NEW 0x1
@@ -142,6 +148,12 @@ typedef struct RemapCfgKey {
     USHORT MakeCode;
     USHORT Flags;
 } RemapCfgKey, * PRemapCfgKey;
+
+typedef enum RemapCfgOverride {
+    RemapCfgOverrideAutoDetect,
+    RemapCfgOverrideEnable,
+    RemapCfgOverrideDisable
+} RemapCfgOverride, *PRemapCfgOverride;
 
 typedef enum RemapCfgKeyState {
     RemapCfgKeyStateNoDetect,
@@ -168,6 +180,8 @@ typedef struct RemapCfgs {
     UINT32 magic;
     UINT32 remappings;
     BOOLEAN FlipSearchAndAssistantOnPixelbook;
+    RemapCfgOverride HasAssistantKey;
+    RemapCfgOverride IsNonChromeEC;
     RemapCfg cfg[1];
 } RemapCfgs, * PRemapCfgs;
 #include <poppack.h>
@@ -233,6 +247,7 @@ typedef struct _DEVICE_EXTENSION
 
     BOOLEAN tabletMode;
     BOOLEAN hasAssistantKey;
+    BOOLEAN isNonChromeEC;
 
     UINT8 legacyTopRowKeys[10];
     UINT8 legacyVivaldi[10];

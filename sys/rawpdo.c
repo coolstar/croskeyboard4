@@ -402,6 +402,20 @@ KBFiltr_UnregisterHIDCallback(
     return TRUE;
 }
 
+void LoadSettings(PDEVICE_EXTENSION filterExt);
+VOID
+KbFiltr_ReloadSettings(
+    IN PVOID Context
+)
+{
+    PDEVICE_EXTENSION           devExt;
+    devExt = (PDEVICE_EXTENSION)Context;
+    if (!devExt) {
+        return;
+    }
+
+    LoadSettings(devExt);
+}
 
 NTSTATUS
 KbFiltr_CreateHIDPdo(
@@ -570,6 +584,7 @@ Return Value:
     CrosKBHIDInterface.InterfaceHeader.Context = (PVOID)devExt;
     CrosKBHIDInterface.RegisterCallback = KBFiltr_RegisterHIDCallback;
     CrosKBHIDInterface.UnregisterCallback = KBFiltr_UnregisterHIDCallback;
+    CrosKBHIDInterface.ReloadSettings = KbFiltr_ReloadSettings;
 
     WDF_QUERY_INTERFACE_CONFIG_INIT(&qiConfig,
         (PINTERFACE)&CrosKBHIDInterface,

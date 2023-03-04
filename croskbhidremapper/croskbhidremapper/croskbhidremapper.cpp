@@ -906,6 +906,14 @@ CrosKBHIDRemapperWriteReport(
 
 				int reg = pReport->SettingsRegister;
 				int val = pReport->SettingsValue;
+
+				if (reg == SETTINGS_REG_RELOADSETTINGS) {
+					DbgPrint("Vivaldi: Sending Reload Settings!\n");
+
+					(*DevContext->CrosKBHidInterface.ReloadSettings)(
+						DevContext->CrosKBHidInterface.InterfaceHeader.Context
+					);
+				}
 			}
 			default:
 				CrosKBHIDRemapperPrint(DEBUG_LEVEL_ERROR, DBG_IOCTL,

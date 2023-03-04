@@ -278,6 +278,8 @@ void LoadSettings(PDEVICE_EXTENSION filterExt) {
 
     remapCfgs->magic = REMAP_CFG_MAGIC;
     remapCfgs->FlipSearchAndAssistantOnPixelbook = TRUE;
+    remapCfgs->HasAssistantKey = RemapCfgOverrideAutoDetect;
+    remapCfgs->IsNonChromeEC = RemapCfgOverrideAutoDetect;
     remapCfgs->remappings = 40;
 
     //Begin map vivalid keys (without Ctrl) to F# keys
@@ -592,6 +594,43 @@ void LoadSettings(PDEVICE_EXTENSION filterExt) {
     remapCfgs->cfg[39].remappedKey.MakeCode = 0x26;
 
     filterExt->remapCfgs = remapCfgs;
+
+    if (remapCfgs->HasAssistantKey == RemapCfgOverrideEnable) {
+        filterExt->hasAssistantKey = TRUE;
+    } else if (remapCfgs->HasAssistantKey == RemapCfgOverrideDisable) {
+        filterExt->hasAssistantKey = FALSE;
+    }
+
+    if (remapCfgs->IsNonChromeEC == RemapCfgOverrideEnable) {
+        filterExt->isNonChromeEC = TRUE;
+    }
+    else if (remapCfgs->IsNonChromeEC == RemapCfgOverrideDisable) {
+        filterExt->isNonChromeEC = FALSE;
+    }
+}
+
+NTSTATUS AutoDetectSettings(PDEVICE_EXTENSION filterExt) {
+    NTSTATUS status = STATUS_SUCCESS;
+
+    WCHAR SmbiosName[MAX_DEVICE_REG_VAL_LENGTH] = { 0 };
+    status = GetSmbiosName(SmbiosName);
+    if (!NT_SUCCESS(status)) {
+        DebugPrint(("GetSmbiosName failed 0x%x\n", status));
+        return status;
+    }
+
+    filterExt->hasAssistantKey = FALSE;
+    filterExt->isNonChromeEC = FALSE;
+    if (wcscmp(SmbiosName, L"Eve") == 0 || (wcscmp(SmbiosName, L"Atlas") == 0)) {
+        RtlCopyMemory(&filterExt->legacyVivaldi, &legacyVivaldiPixelbook, sizeof(filterExt->legacyVivaldi));
+        filterExt->hasAssistantKey = TRUE;
+    }
+    else if (wcscmp(SmbiosName, L"Arcada") == 0 || (wcscmp(SmbiosName, L"Sarien") == 0) || (wcscmp(SmbiosName, L"Drallion") == 0)) {
+        filterExt->hasAssistantKey = TRUE;
+        filterExt->isNonChromeEC = TRUE;
+    }
+
+    return status;
 }
 
 NTSTATUS
@@ -604,19 +643,9 @@ OnSelfManagedIoInit(
 
     NTSTATUS status = STATUS_SUCCESS;
 
-    WCHAR SmbiosName[MAX_DEVICE_REG_VAL_LENGTH] = { 0 };
-    status = GetSmbiosName(SmbiosName);
+    status = AutoDetectSettings(filterExt);
     if (!NT_SUCCESS(status)) {
-        DebugPrint(("GetSmbiosName failed 0x%x\n", status));
         return status;
-    }
-
-    if (wcscmp(SmbiosName, L"Eve") == 0 || (wcscmp(SmbiosName, L"Atlas") == 0)) {
-        RtlCopyMemory(&filterExt->legacyVivaldi, &legacyVivaldiPixelbook, sizeof(filterExt->legacyVivaldi));
-        filterExt->hasAssistantKey = TRUE;
-    }
-    else if (wcscmp(SmbiosName, L"Arcada") == 0 || (wcscmp(SmbiosName, L"Sarien") == 0) || (wcscmp(SmbiosName, L"Drallion") == 0)) {
-        filterExt->hasAssistantKey = TRUE;
     }
 
     for (int i = 0; i < sizeof(filterExt->legacyVivaldi); i++) {
@@ -1765,10 +1794,12 @@ Return Value:
                 }
                 break;
             default:
-                for (int i = 0; i < sizeof(devExt->legacyTopRowKeys); i++) {
-                    if (pData->MakeCode == devExt->legacyTopRowKeys[i]) {
-                        pData->MakeCode = devExt->legacyVivaldi[i];
-                        pData->Flags |= KEY_E0; //All legacy vivaldi upgrades use E0 modifier
+                if (!devExt->isNonChromeEC) {
+                    for (int i = 0; i < sizeof(devExt->legacyTopRowKeys); i++) {
+                        if (pData->MakeCode == devExt->legacyTopRowKeys[i]) {
+                            pData->MakeCode = devExt->legacyVivaldi[i];
+                            pData->Flags |= KEY_E0; //All legacy vivaldi upgrades use E0 modifier
+                        }
                     }
                 }
 
