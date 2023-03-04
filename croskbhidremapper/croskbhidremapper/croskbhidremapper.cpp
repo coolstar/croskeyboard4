@@ -4,8 +4,6 @@
 static ULONG CrosKBHIDRemapperDebugLevel = 100;
 static ULONG CrosKBHIDRemapperDebugCatagories = DBG_INIT || DBG_PNP || DBG_IOCTL;
 
-#define POLL 0 //Enable for Polling
-
 NTSTATUS
 DriverEntry(
 	__in PDRIVER_OBJECT  DriverObject,
@@ -108,9 +106,9 @@ OnReleaseHardware(
 
 	--*/
 {
-	PCROSKBHIDREMAPPER_CONTEXT pDevice = GetDeviceContext(FxDevice);
 	NTSTATUS status = STATUS_SUCCESS;
 
+	UNREFERENCED_PARAMETER(FxDevice);
 	UNREFERENCED_PARAMETER(FxResourcesTranslated);
 
 	return status;
@@ -141,7 +139,6 @@ OnD0Entry(
 	UNREFERENCED_PARAMETER(FxPreviousState);
 
 	PCROSKBHIDREMAPPER_CONTEXT pDevice = GetDeviceContext(FxDevice);
-	NTSTATUS status = STATUS_SUCCESS;
 
 	if (!pDevice->CrosKBHidInterface.RegisterCallback) {
 		return STATUS_NOINTERFACE;
@@ -201,7 +198,6 @@ CrosKBHIDRemapperEvtDeviceAdd(
 	WDF_IO_QUEUE_CONFIG           queueConfig;
 	WDF_OBJECT_ATTRIBUTES         attributes;
 	WDFDEVICE                     device;
-	WDF_INTERRUPT_CONFIG interruptConfig;
 	WDFQUEUE                      queue;
 	UCHAR                         minorFunction;
 	PCROSKBHIDREMAPPER_CONTEXT               devContext;
@@ -866,7 +862,6 @@ CrosKBHIDRemapperWriteReport(
 	NTSTATUS status = STATUS_SUCCESS;
 	WDF_REQUEST_PARAMETERS params;
 	PHID_XFER_PACKET transferPacket = NULL;
-	size_t bytesWritten = 0;
 
 	CrosKBHIDRemapperPrint(DEBUG_LEVEL_VERBOSE, DBG_IOCTL,
 		"CrosKBHIDRemapperWriteReport Entry\n");
@@ -906,6 +901,7 @@ CrosKBHIDRemapperWriteReport(
 
 				int reg = pReport->SettingsRegister;
 				int val = pReport->SettingsValue;
+				UNREFERENCED_PARAMETER(val);
 
 				if (reg == SETTINGS_REG_RELOADSETTINGS) {
 					DbgPrint("Vivaldi: Sending Reload Settings!\n");
@@ -1062,10 +1058,12 @@ CrosKBHIDRemapperSetFeature(
 	NTSTATUS status = STATUS_SUCCESS;
 	WDF_REQUEST_PARAMETERS params;
 	PHID_XFER_PACKET transferPacket = NULL;
-	CrosKBHIDRemapperFeatureReport* pReport = NULL;
 
 	CrosKBHIDRemapperPrint(DEBUG_LEVEL_VERBOSE, DBG_IOCTL,
 		"CrosKBHIDRemapperSetFeature Entry\n");
+
+	UNREFERENCED_PARAMETER(DevContext);
+	UNREFERENCED_PARAMETER(CompleteRequest);
 
 	WDF_REQUEST_PARAMETERS_INIT(&params);
 	WdfRequestGetParameters(Request, &params);
@@ -1131,6 +1129,9 @@ CrosKBHIDRemapperGetFeature(
 
 	WDF_REQUEST_PARAMETERS_INIT(&params);
 	WdfRequestGetParameters(Request, &params);
+
+	UNREFERENCED_PARAMETER(DevContext);
+	UNREFERENCED_PARAMETER(CompleteRequest);
 
 	if (params.Parameters.DeviceIoControl.OutputBufferLength < sizeof(HID_XFER_PACKET))
 	{
