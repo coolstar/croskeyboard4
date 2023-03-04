@@ -82,9 +82,9 @@ NTSTATUS request_firmware(const struct firmware** img, PCWSTR path) {
 	return status;
 }
 
-void free_firmware(struct firmware* fw) {
+void free_firmware(const struct firmware* fw) {
 	if (fw->data) {
 		ExFreePoolWithTag(fw->data, KBFILTER_POOL_TAG);
 	}
-	ExFreePoolWithTag(fw, KBFILTER_POOL_TAG);
+	ExFreePoolWithTag((PVOID)fw, KBFILTER_POOL_TAG);
 }

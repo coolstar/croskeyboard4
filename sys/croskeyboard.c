@@ -267,334 +267,55 @@ exit:
 }
 
 #include <stddef.h>
+#include "firmware.h"
 
 void LoadSettings(PDEVICE_EXTENSION filterExt) {
-    size_t cfgSize = offsetof(RemapCfgs, cfg) + sizeof(RemapCfg) * 40;
-    PRemapCfgs remapCfgs = (PRemapCfgs)ExAllocatePoolWithTag(NonPagedPool, cfgSize, KBFILTER_POOL_TAG);
-    if (!remapCfgs) {
+    if (filterExt->remapCfgs) {
+        ExFreePoolWithTag(filterExt->remapCfgs, KBFILTER_POOL_TAG);
+        filterExt->remapCfgs = NULL;
+    }
+
+    const struct firmware* fw;
+    if (!NT_SUCCESS(request_firmware(&fw, L"\\SystemRoot\\system32\\DRIVERS\\croskbsettings.bin"))) {
+        DbgPrint("Error: failed to find croskbsettings.bin!");
         return;
     }
-    RtlZeroMemory(remapCfgs, cfgSize);
 
-    remapCfgs->magic = REMAP_CFG_MAGIC;
-    remapCfgs->FlipSearchAndAssistantOnPixelbook = TRUE;
-    remapCfgs->HasAssistantKey = RemapCfgOverrideAutoDetect;
-    remapCfgs->IsNonChromeEC = RemapCfgOverrideAutoDetect;
-    remapCfgs->remappings = 40;
+    if (fw->size < offsetof(RemapCfgs, cfg)) {
+        DbgPrint("Error: croskbsettings.bin is too small!");
+        goto out;
+    }
+    else {
+        PRemapCfgs initialCfgs = fw->data;
+        if (initialCfgs->magic != REMAP_CFG_MAGIC) {
+            DbgPrint("Error: croskbsettings.bin has invalid file magic!\n");
+            goto out;
+        }
+        else if (fw->size < (offsetof(RemapCfgs, cfg) + sizeof(RemapCfg) * initialCfgs->remappings)) {
+            DbgPrint("Error: croskbsettings.bin is too small for %d remappings!\n", initialCfgs->remappings);
+            goto out;
+        }
+        else {
+            size_t cfgSize = offsetof(RemapCfgs, cfg) + sizeof(RemapCfg) * initialCfgs->remappings;
+            PRemapCfgs remapCfgs = (PRemapCfgs)ExAllocatePoolWithTag(NonPagedPool, cfgSize, KBFILTER_POOL_TAG);
+            if (!remapCfgs) {
+                DbgPrint("Error: Failed to allocate memory for croskbsettings.bin!\n");
+                goto out;
+            }
 
-    //Begin map vivalid keys (without Ctrl) to F# keys
+            RtlCopyMemory(remapCfgs, fw->data, cfgSize);
+            filterExt->remapCfgs = remapCfgs;
+        }
+    }
 
-    remapCfgs->cfg[0].LeftCtrl = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[0].originalKey.MakeCode = VIVALDI_BACK;
-    remapCfgs->cfg[0].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[0].remapVivaldiToFnKeys = TRUE;
+out:
+    free_firmware(fw);
 
-    remapCfgs->cfg[1].LeftCtrl = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[1].originalKey.MakeCode = VIVALDI_FWD;
-    remapCfgs->cfg[1].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[1].remapVivaldiToFnKeys = TRUE;
+    if (!filterExt->remapCfgs) {
+        return;
+    }
 
-    remapCfgs->cfg[2].LeftCtrl = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[2].originalKey.MakeCode = VIVALDI_REFRESH;
-    remapCfgs->cfg[2].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[2].remapVivaldiToFnKeys = TRUE;
-
-    remapCfgs->cfg[3].LeftCtrl = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[3].originalKey.MakeCode = VIVALDI_FULLSCREEN;
-    remapCfgs->cfg[3].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[3].remapVivaldiToFnKeys = TRUE;
-
-    remapCfgs->cfg[4].LeftCtrl = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[4].originalKey.MakeCode = VIVALDI_OVERVIEW;
-    remapCfgs->cfg[4].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[4].remapVivaldiToFnKeys = TRUE;
-
-    remapCfgs->cfg[5].LeftCtrl = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[5].originalKey.MakeCode = VIVALDI_SNAPSHOT;
-    remapCfgs->cfg[5].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[5].remapVivaldiToFnKeys = TRUE;
-
-    remapCfgs->cfg[6].LeftCtrl = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[6].originalKey.MakeCode = VIVALDI_BRIGHTNESSDN;
-    remapCfgs->cfg[6].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[6].remapVivaldiToFnKeys = TRUE;
-
-    remapCfgs->cfg[7].LeftCtrl = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[7].originalKey.MakeCode = VIVALDI_BRIGHTNESSUP;
-    remapCfgs->cfg[7].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[7].remapVivaldiToFnKeys = TRUE;
-
-    remapCfgs->cfg[8].LeftCtrl = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[8].originalKey.MakeCode = VIVALDI_PRIVACY_TOGGLE;
-    remapCfgs->cfg[8].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[8].remapVivaldiToFnKeys = TRUE;
-
-    remapCfgs->cfg[9].LeftCtrl = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[9].originalKey.MakeCode = VIVALDI_KBD_BKLIGHT_DOWN;
-    remapCfgs->cfg[9].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[9].remapVivaldiToFnKeys = TRUE;
-
-    remapCfgs->cfg[10].LeftCtrl = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[10].originalKey.MakeCode = VIVALDI_KBD_BKLIGHT_UP;
-    remapCfgs->cfg[10].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[10].remapVivaldiToFnKeys = TRUE;
-
-    remapCfgs->cfg[11].LeftCtrl = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[11].originalKey.MakeCode = VIVALDI_KBD_BKLIGHT_TOGGLE;
-    remapCfgs->cfg[11].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[11].remapVivaldiToFnKeys = TRUE;
-
-    remapCfgs->cfg[12].LeftCtrl = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[12].originalKey.MakeCode = VIVALDI_PLAYPAUSE;
-    remapCfgs->cfg[12].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[12].remapVivaldiToFnKeys = TRUE;
-
-    remapCfgs->cfg[13].LeftCtrl = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[13].originalKey.MakeCode = VIVALDI_MUTE;
-    remapCfgs->cfg[13].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[13].remapVivaldiToFnKeys = TRUE;
-
-    remapCfgs->cfg[14].LeftCtrl = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[14].originalKey.MakeCode = VIVALDI_VOLDN;
-    remapCfgs->cfg[14].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[14].remapVivaldiToFnKeys = TRUE;
-
-    remapCfgs->cfg[15].LeftCtrl = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[15].originalKey.MakeCode = VIVALDI_VOLUP;
-    remapCfgs->cfg[15].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[15].remapVivaldiToFnKeys = TRUE;
-
-    remapCfgs->cfg[16].LeftCtrl = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[16].originalKey.MakeCode = VIVALDI_NEXT_TRACK;
-    remapCfgs->cfg[16].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[16].remapVivaldiToFnKeys = TRUE;
-
-    remapCfgs->cfg[17].LeftCtrl = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[17].originalKey.MakeCode = VIVALDI_PREV_TRACK;
-    remapCfgs->cfg[17].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[17].remapVivaldiToFnKeys = TRUE;
-
-    remapCfgs->cfg[18].LeftCtrl = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[18].originalKey.MakeCode = VIVALDI_MICMUTE;
-    remapCfgs->cfg[18].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[18].remapVivaldiToFnKeys = TRUE;
-
-    //Map Ctrl + Alt + Backspace -> Ctrl + Alt + Delete
-
-    remapCfgs->cfg[19].LeftCtrl = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[19].LeftAlt = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[19].originalKey.MakeCode = K_BACKSP;
-    remapCfgs->cfg[19].originalKey.Flags = 0;
-    remapCfgs->cfg[19].remappedKey.MakeCode = K_DELETE;
-    remapCfgs->cfg[19].remappedKey.Flags = KEY_E0;
-
-    //Map Ctrl + Backspace -> Delete
-
-    remapCfgs->cfg[20].LeftCtrl = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[20].LeftAlt = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[20].originalKey.MakeCode = K_BACKSP;
-    remapCfgs->cfg[20].originalKey.Flags = 0;
-    remapCfgs->cfg[20].remappedKey.MakeCode = K_DELETE;
-    remapCfgs->cfg[20].remappedKey.Flags = KEY_E0;
-    remapCfgs->cfg[20].additionalKeys[0].MakeCode = K_LCTRL;
-    remapCfgs->cfg[20].additionalKeys[0].Flags = KEY_BREAK;
-
-    //Map Ctrl + Fullscreen -> F11
-
-    remapCfgs->cfg[21].LeftCtrl = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[21].LeftShift = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[21].originalKey.MakeCode = VIVALDI_FULLSCREEN;
-    remapCfgs->cfg[21].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[21].remappedKey.MakeCode = fnKeys_set1[10];
-    remapCfgs->cfg[21].additionalKeys[0].MakeCode = K_LCTRL;
-    remapCfgs->cfg[21].additionalKeys[0].Flags = KEY_BREAK;
-
-    //Map Ctrl + Shift + Fullscreen -> Windows + P
-
-    remapCfgs->cfg[22].LeftCtrl = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[22].LeftShift = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[22].Search = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[22].originalKey.MakeCode = VIVALDI_FULLSCREEN;
-    remapCfgs->cfg[22].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[22].remappedKey.MakeCode = 0x19;
-    remapCfgs->cfg[22].additionalKeys[0].MakeCode = K_LCTRL;
-    remapCfgs->cfg[22].additionalKeys[0].Flags = KEY_BREAK;
-    remapCfgs->cfg[22].additionalKeys[1].MakeCode = K_LSHFT;
-    remapCfgs->cfg[22].additionalKeys[1].Flags = KEY_BREAK;
-    remapCfgs->cfg[22].additionalKeys[2].MakeCode = K_LWIN;
-    remapCfgs->cfg[22].additionalKeys[2].Flags = KEY_E0;
-
-    remapCfgs->cfg[23].LeftCtrl = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[23].LeftShift = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[23].Search = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[23].originalKey.MakeCode = VIVALDI_FULLSCREEN;
-    remapCfgs->cfg[23].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[23].remappedKey.MakeCode = 0x19;
-    remapCfgs->cfg[23].additionalKeys[0].MakeCode = K_LCTRL;
-    remapCfgs->cfg[23].additionalKeys[0].Flags = KEY_BREAK;
-    remapCfgs->cfg[23].additionalKeys[1].MakeCode = K_LSHFT;
-    remapCfgs->cfg[23].additionalKeys[1].Flags = KEY_BREAK;
-
-    //Map Ctrl + Overview -> Windows + Tab
-
-    remapCfgs->cfg[24].LeftCtrl = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[24].LeftShift = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[24].Search = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[24].originalKey.MakeCode = VIVALDI_OVERVIEW;
-    remapCfgs->cfg[24].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[24].remappedKey.MakeCode = 0x0F;
-    remapCfgs->cfg[24].additionalKeys[0].MakeCode = K_LCTRL;
-    remapCfgs->cfg[24].additionalKeys[0].Flags = KEY_BREAK;
-    remapCfgs->cfg[24].additionalKeys[1].MakeCode = K_LWIN;
-    remapCfgs->cfg[24].additionalKeys[1].Flags = KEY_E0;
-
-    remapCfgs->cfg[25].LeftCtrl = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[25].LeftShift = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[25].Search = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[25].originalKey.MakeCode = VIVALDI_OVERVIEW;
-    remapCfgs->cfg[25].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[25].remappedKey.MakeCode = 0x0F;
-    remapCfgs->cfg[25].additionalKeys[0].MakeCode = K_LCTRL;
-    remapCfgs->cfg[25].additionalKeys[0].Flags = KEY_BREAK;
-
-    //Map Ctrl + Shift + Overview -> Windows + Shift + S
-
-    remapCfgs->cfg[26].LeftCtrl = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[26].LeftShift = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[26].Search = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[26].originalKey.MakeCode = VIVALDI_OVERVIEW;
-    remapCfgs->cfg[26].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[26].remappedKey.MakeCode = 0x1F;
-    remapCfgs->cfg[26].additionalKeys[0].MakeCode = K_LCTRL;
-    remapCfgs->cfg[26].additionalKeys[0].Flags = KEY_BREAK;
-    remapCfgs->cfg[26].additionalKeys[1].MakeCode = K_LWIN;
-    remapCfgs->cfg[26].additionalKeys[1].Flags = KEY_E0;
-
-    remapCfgs->cfg[27].LeftCtrl = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[27].LeftShift = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[27].Search = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[27].originalKey.MakeCode = VIVALDI_OVERVIEW;
-    remapCfgs->cfg[27].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[27].remappedKey.MakeCode = 0x1F;
-    remapCfgs->cfg[27].additionalKeys[0].MakeCode = K_LCTRL;
-    remapCfgs->cfg[27].additionalKeys[0].Flags = KEY_BREAK;
-
-    //Map Ctrl + Snapshot -> Windows + Shift + S
-
-    remapCfgs->cfg[28].LeftCtrl = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[28].LeftShift = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[28].Search = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[28].originalKey.MakeCode = VIVALDI_SNAPSHOT;
-    remapCfgs->cfg[28].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[28].remappedKey.MakeCode = 0x1F;
-    remapCfgs->cfg[28].additionalKeys[0].MakeCode = K_LCTRL;
-    remapCfgs->cfg[28].additionalKeys[0].Flags = KEY_BREAK;
-    remapCfgs->cfg[28].additionalKeys[1].MakeCode = K_LWIN;
-    remapCfgs->cfg[28].additionalKeys[1].Flags = KEY_E0;
-    remapCfgs->cfg[28].additionalKeys[2].MakeCode = K_LSHFT;
-
-    remapCfgs->cfg[29].LeftCtrl = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[29].LeftShift = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[29].Search = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[29].originalKey.MakeCode = VIVALDI_SNAPSHOT;
-    remapCfgs->cfg[29].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[29].remappedKey.MakeCode = 0x1F;
-    remapCfgs->cfg[29].additionalKeys[0].MakeCode = K_LCTRL;
-    remapCfgs->cfg[29].additionalKeys[0].Flags = KEY_BREAK;
-    remapCfgs->cfg[29].additionalKeys[1].MakeCode = K_LSHFT;
-
-    remapCfgs->cfg[30].LeftCtrl = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[30].LeftShift = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[30].Search = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[30].originalKey.MakeCode = VIVALDI_SNAPSHOT;
-    remapCfgs->cfg[30].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[30].remappedKey.MakeCode = 0x1F;
-    remapCfgs->cfg[30].additionalKeys[0].MakeCode = K_LCTRL;
-    remapCfgs->cfg[30].additionalKeys[0].Flags = KEY_BREAK;
-    remapCfgs->cfg[30].additionalKeys[1].MakeCode = K_LWIN;
-    remapCfgs->cfg[30].additionalKeys[1].Flags = KEY_E0;
-
-    remapCfgs->cfg[31].LeftCtrl = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[31].LeftShift = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[31].Search = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[31].originalKey.MakeCode = VIVALDI_SNAPSHOT;
-    remapCfgs->cfg[31].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[31].remappedKey.MakeCode = 0x1F;
-    remapCfgs->cfg[31].additionalKeys[0].MakeCode = K_LCTRL;
-    remapCfgs->cfg[31].additionalKeys[0].Flags = KEY_BREAK;
-
-    //Ctrl + Alt + Brightness -> Ctrl + Alt + KB Brightness
-
-    remapCfgs->cfg[32].LeftCtrl = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[32].LeftAlt = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[32].originalKey.MakeCode = VIVALDI_BRIGHTNESSDN;
-    remapCfgs->cfg[32].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[32].remappedKey.MakeCode = VIVALDI_KBD_BKLIGHT_DOWN;
-    remapCfgs->cfg[32].remappedKey.Flags = KEY_E0;
-
-    remapCfgs->cfg[33].LeftCtrl = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[33].LeftAlt = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[33].originalKey.MakeCode = VIVALDI_BRIGHTNESSUP;
-    remapCfgs->cfg[33].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[33].remappedKey.MakeCode = VIVALDI_KBD_BKLIGHT_UP;
-    remapCfgs->cfg[33].remappedKey.Flags = KEY_E0;
-
-    //Ctrl + Left -> Home
-
-    remapCfgs->cfg[34].LeftCtrl = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[34].originalKey.MakeCode = K_LEFT;
-    remapCfgs->cfg[34].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[34].remappedKey.MakeCode = K_HOME;
-    remapCfgs->cfg[34].remappedKey.Flags = KEY_E0;
-    remapCfgs->cfg[34].additionalKeys[0].MakeCode = K_LCTRL;
-    remapCfgs->cfg[34].additionalKeys[0].Flags = KEY_BREAK;
-
-    //Ctrl + Right -> End
-
-    remapCfgs->cfg[35].LeftCtrl = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[35].originalKey.MakeCode = K_RIGHT;
-    remapCfgs->cfg[35].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[35].remappedKey.MakeCode = K_END;
-    remapCfgs->cfg[35].remappedKey.Flags = KEY_E0;
-    remapCfgs->cfg[35].additionalKeys[0].MakeCode = K_LCTRL;
-    remapCfgs->cfg[35].additionalKeys[0].Flags = KEY_BREAK;
-
-    //Ctrl + Up -> Page Up
-
-    remapCfgs->cfg[36].LeftCtrl = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[36].originalKey.MakeCode = K_UP;
-    remapCfgs->cfg[36].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[36].remappedKey.MakeCode = K_PGUP;
-    remapCfgs->cfg[36].remappedKey.Flags = KEY_E0;
-    remapCfgs->cfg[36].additionalKeys[0].MakeCode = K_LCTRL;
-    remapCfgs->cfg[36].additionalKeys[0].Flags = KEY_BREAK;
-
-    //Ctrl + Down -> Page Down
-
-    remapCfgs->cfg[37].LeftCtrl = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[37].originalKey.MakeCode = K_DOWN;
-    remapCfgs->cfg[37].originalKey.Flags = KEY_E0;
-    remapCfgs->cfg[37].remappedKey.MakeCode = K_PGDN;
-    remapCfgs->cfg[37].remappedKey.Flags = KEY_E0;
-    remapCfgs->cfg[37].additionalKeys[0].MakeCode = K_LCTRL;
-    remapCfgs->cfg[37].additionalKeys[0].Flags = KEY_BREAK;
-
-    //Lock -> Windows + L
-
-    remapCfgs->cfg[38].Search = RemapCfgKeyStateEnforceNot;
-    remapCfgs->cfg[38].originalKey.MakeCode = K_LOCK;
-    remapCfgs->cfg[38].originalKey.Flags = 0;
-    remapCfgs->cfg[38].remappedKey.MakeCode = 0x26;
-    remapCfgs->cfg[38].additionalKeys[0].MakeCode = K_LWIN;
-    remapCfgs->cfg[38].additionalKeys[0].Flags = KEY_E0;
-
-    remapCfgs->cfg[39].Search = RemapCfgKeyStateEnforce;
-    remapCfgs->cfg[39].originalKey.MakeCode = K_LOCK;
-    remapCfgs->cfg[39].originalKey.Flags = 0;
-    remapCfgs->cfg[39].remappedKey.MakeCode = 0x26;
-
-    filterExt->remapCfgs = remapCfgs;
-
+    PRemapCfgs remapCfgs = filterExt->remapCfgs;
     if (remapCfgs->HasAssistantKey == RemapCfgOverrideEnable) {
         filterExt->hasAssistantKey = TRUE;
     } else if (remapCfgs->HasAssistantKey == RemapCfgOverrideDisable) {

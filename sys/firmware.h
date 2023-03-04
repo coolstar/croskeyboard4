@@ -7,4 +7,4 @@ struct firmware {
 };
 
 NTSTATUS request_firmware(const struct firmware** img, PCWSTR path);
-void free_firmware(struct firmware* fw);
+void free_firmware(const struct firmware* fw);
