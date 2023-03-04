@@ -160,6 +160,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="croskeyboard.c" />
+    <ClCompile Include="firmware.c" />
     <ClCompile Include="rawpdo.c" />
     <ResourceCompile Include="croskeyboard.rc" />
   </ItemGroup>
@@ -174,6 +175,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Exclude="@(ClInclude)" Include="croskeyboard.h" />
+    <ClInclude Include="firmware.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

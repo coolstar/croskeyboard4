@@ -25,6 +25,9 @@
     <ClCompile Include="rawpdo.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="firmware.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="croskeyboard.rc">
@@ -44,7 +47,7 @@
     <ClInclude Include="*.h;*.hpp;*.hxx;*.hm;*.inl;*.xsd">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="*.h;*.hpp;*.hxx;*.hm;*.inl;*.xsd">
+    <ClInclude Include="firmware.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
