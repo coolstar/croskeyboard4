@@ -402,6 +402,7 @@ KBFiltr_UnregisterHIDCallback(
     return TRUE;
 }
 
+NTSTATUS AutoDetectSettings(PDEVICE_EXTENSION filterExt);
 void LoadSettings(PDEVICE_EXTENSION filterExt);
 VOID
 KbFiltr_ReloadSettings(
@@ -414,6 +415,7 @@ KbFiltr_ReloadSettings(
         return;
     }
 
+    AutoDetectSettings(devExt);
     LoadSettings(devExt);
 }
 
