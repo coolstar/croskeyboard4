@@ -77,6 +77,8 @@ Return Value:
     WDF_DRIVER_CONFIG               config;
     NTSTATUS                        status;
 
+    ExInitializeDriverRuntime(DrvRtPoolNxOptIn);
+
     DebugPrint(("Keyboard Filter Driver Sample - Driver Framework Edition.\n"));
     DebugPrint(("Built %s %s\n", __DATE__, __TIME__));
 
@@ -297,7 +299,7 @@ void LoadSettings(PDEVICE_EXTENSION filterExt) {
         }
         else {
             size_t cfgSize = offsetof(RemapCfgs, cfg) + sizeof(RemapCfg) * initialCfgs->remappings;
-            PRemapCfgs remapCfgs = (PRemapCfgs)ExAllocatePoolWithTag(NonPagedPool, cfgSize, KBFILTER_POOL_TAG);
+            PRemapCfgs remapCfgs = (PRemapCfgs)ExAllocatePoolZero(NonPagedPool, cfgSize, KBFILTER_POOL_TAG);
             if (!remapCfgs) {
                 DbgPrint("Error: Failed to allocate memory for croskbsettings.bin!\n");
                 goto out;

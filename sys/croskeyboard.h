@@ -90,6 +90,7 @@ typedef enum {
     CSVivaldiRequestUpdateTabletMode = 0x102
 } CSVivaldiRequest;
 
+#include <pshpack1.h>
 typedef struct CSVivaldiSettingsArg {
     UINT32 argSz;
     CSVivaldiRequest settingsRequest;
@@ -103,6 +104,7 @@ typedef struct CSVivaldiSettingsArg {
         } tabletmode;
     } args;
 } CSVivaldiSettingsArg, *PCSVivaldiSettingsArg;
+#include <poppack.h>
 
 typedef NTSTATUS
 (*PPROCESS_HID_REPORT)(
