@@ -125,6 +125,7 @@ const UINT8 fnKeys_set1[] = {
 #define K_LALT      0x38
 #define K_LSHFT     0x2A
 #define K_ASSISTANT 0x58
+#define WILCO_ASSISTANT 0x54
 #define K_LWIN      0x5B
 
 #define K_RCTRL     0x1D
@@ -1480,6 +1481,9 @@ Return Value:
 
     PKEYBOARD_INPUT_DATA pData;
     for (pData = InputDataStart; pData != InputDataEnd; pData++) { //First loop -> Refresh Modifier Keys and Change Legacy Keys to vivaldi bindings
+        if (pData->MakeCode == WILCO_ASSISTANT && (pData->Flags & KEY_TYPES) == KEY_E0) { //Wilco uses different Assistant Key
+            pData->MakeCode = K_ASSISTANT;
+        }
         if (devExt->hasAssistantKey && devExt->remapCfgs != NULL && devExt->remapCfgs->FlipSearchAndAssistantOnPixelbook) {
             if (pData->MakeCode == K_ASSISTANT && (pData->Flags & KEY_TYPES) == KEY_E0) {
                 pData->MakeCode = K_LWIN;
