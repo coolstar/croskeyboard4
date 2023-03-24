@@ -169,6 +169,13 @@ const UINT8 fnKeys_set1[] = {
 #define VIVALDI_PREV_TRACK          0x10
 #define VIVALDI_MICMUTE             0x1b
 
+//Wilco uses slightly different keys. Just here for reference as it has a dedicated Fn key
+#define WILCO_FULLSCREEN 0x55
+#define WILCO_OVERVIEW 0x56
+#define WILCO_BRIGHTNESSDN 0x15
+#define WILCO_BRIGHTNESSUP 0x11
+#define WILCO_PROJECT 0xb
+
 #define REMAP_CFG_MAGIC 'CrKB'
 
 const UINT8 legacyVivaldi[] = {
