@@ -150,6 +150,10 @@ OnD0Entry(
 		(PPROCESS_HID_REPORT)&CrosKBHIDRemapperProcessVendorReport
 		);
 
+	if (success) {
+		CrosKBHIDRemapperCompleteIdleIrp(pDevice);
+	}
+
 	return success ? STATUS_SUCCESS : STATUS_INVALID_DEVICE_REQUEST;
 }
 
@@ -230,28 +234,6 @@ CrosKBHIDRemapperEvtDeviceAdd(
 	}
 
 	//
-	// Because we are a virtual device the root enumerator would just put null values 
-	// in response to IRP_MN_QUERY_ID. Lets override that.
-	//
-
-	minorFunction = IRP_MN_QUERY_ID;
-
-	status = WdfDeviceInitAssignWdmIrpPreprocessCallback(
-		DeviceInit,
-		CrosKBHIDRemapperEvtWdmPreprocessMnQueryId,
-		IRP_MJ_PNP,
-		&minorFunction,
-		1
-		);
-	if (!NT_SUCCESS(status))
-	{
-		CrosKBHIDRemapperPrint(DEBUG_LEVEL_ERROR, DBG_PNP,
-			"WdfDeviceInitAssignWdmIrpPreprocessCallback failed Status 0x%x\n", status);
-
-		return status;
-	}
-
-	//
 	// Setup the device context
 	//
 
@@ -304,6 +286,7 @@ CrosKBHIDRemapperEvtDeviceAdd(
 	//
 
 	devContext = GetDeviceContext(device);
+	devContext->FxDevice = device;
 
 	WDF_IO_QUEUE_CONFIG_INIT(&queueConfig, WdfIoQueueDispatchManual);
 
@@ -324,6 +307,28 @@ CrosKBHIDRemapperEvtDeviceAdd(
 	}
 
 	//
+	// Create manual I/O queue to take care of idle power requests
+	//
+
+	WDF_IO_QUEUE_CONFIG_INIT(&queueConfig, WdfIoQueueDispatchManual);
+
+	queueConfig.PowerManaged = WdfFalse;
+
+	status = WdfIoQueueCreate(device,
+		&queueConfig,
+		WDF_NO_OBJECT_ATTRIBUTES,
+		&devContext->IdleQueue
+	);
+
+	if (!NT_SUCCESS(status))
+	{
+		CrosKBHIDRemapperPrint(DEBUG_LEVEL_ERROR, DBG_PNP,
+			"WdfIoQueueCreate failed 0x%x\n", status);
+
+		return status;
+	}
+
+	//
 	// Initialize DeviceMode
 	//
 
@@ -332,108 +337,240 @@ CrosKBHIDRemapperEvtDeviceAdd(
 	return status;
 }
 
-NTSTATUS
-CrosKBHIDRemapperEvtWdmPreprocessMnQueryId(
-	WDFDEVICE Device,
-	PIRP Irp
-	)
+void
+CrosKBHIDRemapperIdleIrpWorkItem
+(
+	IN WDFWORKITEM IdleWorkItem
+)
 {
-	NTSTATUS            status;
-	PIO_STACK_LOCATION  IrpStack, previousSp;
-	PDEVICE_OBJECT      DeviceObject;
-	PWCHAR              buffer;
+	NTSTATUS status;
+	PIDLE_WORKITEM_CONTEXT idleWorkItemContext;
+	PCROSKBHIDREMAPPER_CONTEXT deviceContext;
+	PHID_SUBMIT_IDLE_NOTIFICATION_CALLBACK_INFO idleCallbackInfo;
 
-	PAGED_CODE();
+	idleWorkItemContext = GetIdleWorkItemContext(IdleWorkItem);
+	NT_ASSERT(idleWorkItemContext != NULL);
 
-	//
-	// Get a pointer to the current location in the Irp
-	//
-
-	IrpStack = IoGetCurrentIrpStackLocation(Irp);
+	deviceContext = GetDeviceContext(idleWorkItemContext->FxDevice);
+	NT_ASSERT(deviceContext != NULL);
 
 	//
-	// Get the device object
+	// Get the idle callback info from the workitem context
 	//
-	DeviceObject = WdfDeviceWdmGetDeviceObject(Device);
+	PIRP irp = WdfRequestWdmGetIrp(idleWorkItemContext->FxRequest);
+	PIO_STACK_LOCATION stackLocation = IoGetCurrentIrpStackLocation(irp);
 
-
-	CrosKBHIDRemapperPrint(DEBUG_LEVEL_VERBOSE, DBG_PNP,
-		"CrosKBHIDRemapperEvtWdmPreprocessMnQueryId Entry\n");
+	idleCallbackInfo = (PHID_SUBMIT_IDLE_NOTIFICATION_CALLBACK_INFO)
+		(stackLocation->Parameters.DeviceIoControl.Type3InputBuffer);
 
 	//
-	// This check is required to filter out QUERY_IDs forwarded
-	// by the HIDCLASS for the parent FDO. These IDs are sent
-	// by PNP manager for the parent FDO if you root-enumerate this driver.
+	// idleCallbackInfo is validated already, so invoke idle callback
 	//
-	previousSp = ((PIO_STACK_LOCATION)((UCHAR *)(IrpStack)+
-		sizeof(IO_STACK_LOCATION)));
+	idleCallbackInfo->IdleCallback(idleCallbackInfo->IdleContext);
 
-	if (previousSp->DeviceObject == DeviceObject)
+	//
+	// Park this request in our IdleQueue and mark it as pending
+	// This way if the IRP was cancelled, WDF will cancel it for us
+	//
+	status = WdfRequestForwardToIoQueue(
+		idleWorkItemContext->FxRequest,
+		deviceContext->IdleQueue);
+
+	if (!NT_SUCCESS(status))
 	{
 		//
-		// Filtering out this basically prevents the Found New Hardware
-		// popup for the root-enumerated CrosKBHIDRemapper on reboot.
+		// IdleQueue is a manual-dispatch, non-power-managed queue. This should
+		// *never* fail.
 		//
-		status = Irp->IoStatus.Status;
+
+		NT_ASSERTMSG("WdfRequestForwardToIoQueue to IdleQueue failed!", FALSE);
+
+		CrosKBHIDRemapperPrint(DEBUG_LEVEL_INFO, DBG_IOCTL,
+			"Error forwarding idle notification Request:0x%p to IdleQueue:0x%p - %!STATUS!",
+			idleWorkItemContext->FxRequest,
+			deviceContext->IdleQueue,
+			status);
+
+		//
+		// Complete the request if we couldnt forward to the Idle Queue
+		//
+		WdfRequestComplete(idleWorkItemContext->FxRequest, status);
 	}
 	else
 	{
-		switch (IrpStack->Parameters.QueryId.IdType)
-		{
-		case BusQueryDeviceID:
-		case BusQueryHardwareIDs:
-			//
-			// HIDClass is asking for child deviceid & hardwareids.
-			// Let us just make up some id for our child device.
-			//
-			buffer = (PWCHAR)ExAllocatePoolWithTag(
-				NonPagedPool,
-				CROSKBHIDREMAPPER_HARDWARE_IDS_LENGTH,
-				CROSKBHIDREMAPPER_POOL_TAG
-				);
-
-			if (buffer)
-			{
-				//
-				// Do the copy, store the buffer in the Irp
-				//
-				RtlCopyMemory(buffer,
-					CROSKBHIDREMAPPER_HARDWARE_IDS,
-					CROSKBHIDREMAPPER_HARDWARE_IDS_LENGTH
-					);
-
-				Irp->IoStatus.Information = (ULONG_PTR)buffer;
-				status = STATUS_SUCCESS;
-			}
-			else
-			{
-				//
-				//  No memory
-				//
-				status = STATUS_INSUFFICIENT_RESOURCES;
-			}
-
-			Irp->IoStatus.Status = status;
-			//
-			// We don't need to forward this to our bus. This query
-			// is for our child so we should complete it right here.
-			// fallthru.
-			//
-			IoCompleteRequest(Irp, IO_NO_INCREMENT);
-
-			break;
-
-		default:
-			status = Irp->IoStatus.Status;
-			IoCompleteRequest(Irp, IO_NO_INCREMENT);
-			break;
-		}
+		CrosKBHIDRemapperPrint(DEBUG_LEVEL_INFO, DBG_IOCTL,
+			"Forwarded idle notification Request:0x%p to IdleQueue:0x%p - %!STATUS!",
+			idleWorkItemContext->FxRequest,
+			deviceContext->IdleQueue,
+			status);
 	}
 
-	CrosKBHIDRemapperPrint(DEBUG_LEVEL_VERBOSE, DBG_IOCTL,
-		"CrosKBHIDRemapperEvtWdmPreprocessMnQueryId Exit = 0x%x\n", status);
+	//
+	// Delete the workitem since we're done with it
+	//
+	WdfObjectDelete(IdleWorkItem);
+
+	return;
+}
+
+NTSTATUS
+CrosKBHIDRemapperProcessIdleRequest(
+	IN PCROSKBHIDREMAPPER_CONTEXT pDevice,
+	IN WDFREQUEST Request,
+	OUT BOOLEAN* Complete
+)
+{
+	PHID_SUBMIT_IDLE_NOTIFICATION_CALLBACK_INFO idleCallbackInfo;
+	PIRP irp;
+	PIO_STACK_LOCATION irpSp;
+	NTSTATUS status;
+
+	NT_ASSERT(Complete != NULL);
+	*Complete = TRUE;
+
+	//
+	// Retrieve request parameters and validate
+	//
+	irp = WdfRequestWdmGetIrp(Request);
+	irpSp = IoGetCurrentIrpStackLocation(irp);
+
+	if (irpSp->Parameters.DeviceIoControl.InputBufferLength <
+		sizeof(HID_SUBMIT_IDLE_NOTIFICATION_CALLBACK_INFO))
+	{
+		status = STATUS_INVALID_BUFFER_SIZE;
+
+		CrosKBHIDRemapperPrint(DEBUG_LEVEL_INFO, DBG_IOCTL,
+			"Error: Input buffer is too small to process idle request - %!STATUS!",
+			status);
+
+		goto exit;
+	}
+
+	//
+	// Grab the callback
+	//
+	idleCallbackInfo = (PHID_SUBMIT_IDLE_NOTIFICATION_CALLBACK_INFO)
+		irpSp->Parameters.DeviceIoControl.Type3InputBuffer;
+
+	NT_ASSERT(idleCallbackInfo != NULL);
+
+	if (idleCallbackInfo == NULL || idleCallbackInfo->IdleCallback == NULL)
+	{
+		status = STATUS_NO_CALLBACK_ACTIVE;
+		CrosKBHIDRemapperPrint(DEBUG_LEVEL_INFO, DBG_IOCTL,
+			"Error: Idle Notification request %p has no idle callback info - %!STATUS!",
+			Request,
+			status);
+		goto exit;
+	}
+
+	{
+		//
+		// Create a workitem for the idle callback
+		//
+		WDF_OBJECT_ATTRIBUTES workItemAttributes;
+		WDF_WORKITEM_CONFIG workitemConfig;
+		WDFWORKITEM idleWorkItem;
+		PIDLE_WORKITEM_CONTEXT idleWorkItemContext;
+
+		WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&workItemAttributes, IDLE_WORKITEM_CONTEXT);
+		workItemAttributes.ParentObject = pDevice->FxDevice;
+
+		WDF_WORKITEM_CONFIG_INIT(&workitemConfig, CrosKBHIDRemapperIdleIrpWorkItem);
+
+		status = WdfWorkItemCreate(
+			&workitemConfig,
+			&workItemAttributes,
+			&idleWorkItem
+		);
+
+		if (!NT_SUCCESS(status)) {
+			CrosKBHIDRemapperPrint(DEBUG_LEVEL_INFO, DBG_IOCTL,
+				"Error creating creating idle work item - %!STATUS!",
+				status);
+			goto exit;
+		}
+
+		//
+		// Set the workitem context
+		//
+		idleWorkItemContext = GetIdleWorkItemContext(idleWorkItem);
+		idleWorkItemContext->FxDevice = pDevice->FxDevice;
+		idleWorkItemContext->FxRequest = Request;
+
+		//
+		// Enqueue a workitem for the idle callback
+		//
+		WdfWorkItemEnqueue(idleWorkItem);
+
+		//
+		// Mark the request as pending so that 
+		// we can complete it when we come out of idle
+		//
+		*Complete = FALSE;
+	}
+
+exit:
 
 	return status;
+}
+
+VOID
+CrosKBHIDRemapperCompleteIdleIrp(
+	IN PCROSKBHIDREMAPPER_CONTEXT FxDeviceContext
+)
+/*++
+
+Routine Description:
+
+	This is invoked when we enter D0.
+	We simply complete the Idle Irp if it hasn't been cancelled already.
+
+Arguments:
+
+	FxDeviceContext -  Pointer to Device Context for the device
+
+Return Value:
+
+
+
+--*/
+{
+	NTSTATUS status;
+	WDFREQUEST request = NULL;
+
+	//
+	// Lets try to retrieve the Idle IRP from the Idle queue
+	//
+	status = WdfIoQueueRetrieveNextRequest(
+		FxDeviceContext->IdleQueue,
+		&request);
+
+	//
+	// We did not find the Idle IRP, maybe it was cancelled
+	// 
+	if (!NT_SUCCESS(status) || (request == NULL))
+	{
+		CrosKBHIDRemapperPrint(DEBUG_LEVEL_INFO, DBG_IOCTL,
+			"Error finding idle notification request in IdleQueue:0x%p - %!STATUS!",
+			FxDeviceContext->IdleQueue,
+			status);
+	}
+	else
+	{
+		//
+		// Complete the Idle IRP
+		//
+		WdfRequestComplete(request, status);
+
+		CrosKBHIDRemapperPrint(DEBUG_LEVEL_INFO, DBG_IOCTL,
+			"Completed idle notification Request:0x%p from IdleQueue:0x%p - %!STATUS!",
+			request,
+			FxDeviceContext->IdleQueue,
+			status);
+	}
+
+	return;
 }
 
 VOID
@@ -542,6 +679,11 @@ CrosKBHIDRemapperEvtInternalDeviceControl(
 		// returns a feature report associated with a top-level collection
 		//
 		status = CrosKBHIDRemapperGetFeature(devContext, Request, &completeRequest);
+		break;
+
+	case IOCTL_HID_SEND_IDLE_NOTIFICATION_REQUEST:
+		//Handle HID Idle request
+		status = CrosKBHIDRemapperProcessIdleRequest(devContext, Request, &completeRequest);
 		break;
 
 	case IOCTL_HID_ACTIVATE_DEVICE:

@@ -180,8 +180,11 @@ typedef struct _CROSKBHID_INTERFACE_STANDARD {
 
 typedef struct _CROSKBHIDREMAPPER_CONTEXT
 {
+	WDFDEVICE FxDevice;
 
 	WDFQUEUE ReportQueue;
+
+	WDFQUEUE IdleQueue;
 
 	BYTE DeviceMode;
 
@@ -192,6 +195,20 @@ typedef struct _CROSKBHIDREMAPPER_CONTEXT
 WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(CROSKBHIDREMAPPER_CONTEXT, GetDeviceContext)
 
 //
+// Power Idle Workitem context
+// 
+typedef struct _IDLE_WORKITEM_CONTEXT
+{
+	// Handle to a WDF device object
+	WDFDEVICE FxDevice;
+
+	// Handle to a WDF request object
+	WDFREQUEST FxRequest;
+
+} IDLE_WORKITEM_CONTEXT, * PIDLE_WORKITEM_CONTEXT;
+WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(IDLE_WORKITEM_CONTEXT, GetIdleWorkItemContext)
+
+//
 // Function definitions
 //
 
@@ -200,8 +217,6 @@ DRIVER_INITIALIZE DriverEntry;
 EVT_WDF_DRIVER_UNLOAD CrosKBHIDRemapperDriverUnload;
 
 EVT_WDF_DRIVER_DEVICE_ADD CrosKBHIDRemapperEvtDeviceAdd;
-
-EVT_WDFDEVICE_WDM_IRP_PREPROCESS CrosKBHIDRemapperEvtWdmPreprocessMnQueryId;
 
 EVT_WDF_IO_QUEUE_IO_INTERNAL_DEVICE_CONTROL CrosKBHIDRemapperEvtInternalDeviceControl;
 
@@ -266,6 +281,11 @@ PCHAR
 DbgHidInternalIoctlString(
 	IN ULONG        IoControlCode
 	);
+
+VOID
+CrosKBHIDRemapperCompleteIdleIrp(
+	IN PCROSKBHIDREMAPPER_CONTEXT FxDeviceContext
+);
 
 //
 // Helper macros
